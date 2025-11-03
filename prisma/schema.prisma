@@ -1,0 +1,240 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ==================== MODELOS ====================
+
+model Area {
+  id_area String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  nombre  String  @unique @db.VarChar(100)
+  activo  Boolean @default(true)
+
+  // Relaciones
+  usuarios          Usuario[] @relation("AreaUsuarios")
+  tramitesRemitente Tramite[] @relation("AreaRemitente")
+
+  @@map("area")
+}
+
+model Rol {
+  id_rol String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  codigo String  @unique @db.VarChar(20)
+  nombre String  @unique @db.VarChar(50)
+  activo Boolean @default(true)
+
+  // Relaciones
+  usuarios UsuarioRol[]
+
+  @@map("rol")
+}
+
+model Usuario {
+  id_usuario     String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  dni            String   @unique @db.VarChar(20)
+  nombres        String   @db.VarChar(100)
+  apellidos      String   @db.VarChar(100)
+  correo         String   @unique @db.VarChar(150)
+  telefono       String?  @db.VarChar(20)
+  password       String   @db.VarChar(255)
+  id_area        String   @db.Uuid
+  activo         Boolean  @default(true)
+  fecha_creacion DateTime @default(now()) @db.Timestamp()
+
+  // Relaciones
+  area                   Area               @relation("AreaUsuarios", fields: [id_area], references: [id_area])
+  roles                  UsuarioRol[]
+  documentosCreados      Documento[]        @relation("DocumentoCreador")
+  tramitesEnviados       Tramite[]          @relation("TramiteRemitente")
+  tramitesRecibidos      Tramite[]          @relation("TramiteReceptor")
+  tramitesAnulados       Tramite[]          @relation("TramiteAnuladoPor")
+  historialTramites      HistorialTramite[]
+  observacionesCreadas   Observacion[]      @relation("ObservacionCreador")
+  observacionesResueltas Observacion[]      @relation("ObservacionResolutor")
+  notificaciones         Notificacion[]
+
+  @@index([id_area])
+  @@index([correo])
+  @@map("usuario")
+}
+
+model UsuarioRol {
+  id_usuario String @db.Uuid
+  id_rol     String @db.Uuid
+
+  // Relaciones
+  usuario Usuario @relation(fields: [id_usuario], references: [id_usuario], onDelete: Cascade)
+  rol     Rol     @relation(fields: [id_rol], references: [id_rol], onDelete: Cascade)
+
+  @@id([id_usuario, id_rol])
+  @@map("usuario_rol")
+}
+
+model TipoDocumento {
+  id_tipo            String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  codigo             String  @unique @db.VarChar(20)
+  nombre             String  @unique @db.VarChar(100)
+  descripcion        String? @db.VarChar(255)
+  requiere_firma     Boolean @default(false)
+  requiere_respuesta Boolean @default(false)
+
+  // Relaciones
+  documentos Documento[]
+
+  @@map("tipo_documento")
+}
+
+model Documento {
+  id_documento          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  titulo                String   @db.VarChar(255)
+  ruta_archivo          String   @db.VarChar(500)
+  nombre_archivo        String   @db.VarChar(255)
+  extension             String   @db.VarChar(10)
+  tamano_bytes          BigInt
+  id_tipo               String   @db.Uuid
+  version               Int      @default(1)
+  id_documento_anterior String?  @db.Uuid
+  fecha_creacion        DateTime @default(now()) @db.Timestamp()
+  creado_por            String   @db.Uuid
+
+  // Relaciones
+  tipo                 TipoDocumento @relation(fields: [id_tipo], references: [id_tipo])
+  creador              Usuario       @relation("DocumentoCreador", fields: [creado_por], references: [id_usuario])
+  documentoAnterior    Documento?    @relation("VersionDocumento", fields: [id_documento_anterior], references: [id_documento])
+  versionesPosteriores Documento[]   @relation("VersionDocumento")
+  tramites             Tramite[]
+
+  @@map("documento")
+}
+
+model Tramite {
+  id_tramite         String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  codigo             String  @unique @db.VarChar(50)
+  id_documento       String  @db.Uuid
+  id_remitente       String  @db.Uuid
+  id_area_remitente  String  @db.Uuid
+  id_receptor        String  @db.Uuid
+  asunto             String  @db.VarChar(255)
+  mensaje            String? @db.Text
+  estado             String  @default("ENVIADO") @db.VarChar(20)
+  requiere_firma     Boolean @default(false)
+  requiere_respuesta Boolean @default(false)
+
+  // Fechas
+  fecha_envio   DateTime  @default(now()) @db.Timestamp()
+  fecha_abierto DateTime? @db.Timestamp()
+  fecha_leido   DateTime? @db.Timestamp()
+  fecha_firmado DateTime? @db.Timestamp()
+  fecha_anulado DateTime? @db.Timestamp()
+
+  // Reenvíos
+  es_reenvio          Boolean @default(false)
+  id_tramite_original String? @db.Uuid
+  motivo_reenvio      String? @db.Text
+  numero_version      Int     @default(1)
+
+  anulado_por      String? @db.Uuid
+  motivo_anulacion String? @db.Text
+
+  // Relaciones
+  documento         Documento          @relation(fields: [id_documento], references: [id_documento])
+  remitente         Usuario            @relation("TramiteRemitente", fields: [id_remitente], references: [id_usuario])
+  areaRemitente     Area               @relation("AreaRemitente", fields: [id_area_remitente], references: [id_area])
+  receptor          Usuario            @relation("TramiteReceptor", fields: [id_receptor], references: [id_usuario])
+  tramiteOriginal   Tramite?           @relation("ReenvioTramite", fields: [id_tramite_original], references: [id_tramite])
+  reenvios          Tramite[]          @relation("ReenvioTramite")
+  anuladoPorUsuario Usuario?           @relation("TramiteAnuladoPor", fields: [anulado_por], references: [id_usuario])
+  historial         HistorialTramite[]
+  firma             FirmaElectronica?
+  observaciones     Observacion[]
+  notificaciones    Notificacion[]
+
+  @@index([id_receptor])
+  @@index([id_remitente])
+  @@index([estado])
+  @@index([fecha_envio])
+  @@map("tramite")
+}
+
+model HistorialTramite {
+  id_historial      String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_tramite        String   @db.Uuid
+  accion            String   @db.VarChar(50)
+  detalle           String?  @db.Text
+  estado_anterior   String?  @db.VarChar(20)
+  estado_nuevo      String?  @db.VarChar(20)
+  datos_adicionales Json?    @db.JsonB
+  realizado_por     String?  @db.Uuid
+  ip_address        String?  @db.VarChar(45)
+  fecha             DateTime @default(now()) @db.Timestamp()
+
+  // Relaciones
+  tramite Tramite  @relation(fields: [id_tramite], references: [id_tramite], onDelete: Cascade)
+  usuario Usuario? @relation(fields: [realizado_por], references: [id_usuario])
+
+  @@index([id_tramite])
+  @@map("historial_tramite")
+}
+
+model FirmaElectronica {
+  id_firma        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_tramite      String   @unique @db.Uuid
+  acepta_terminos Boolean
+  ip_address      String   @db.VarChar(45)
+  navegador       String?  @db.VarChar(100)
+  dispositivo     String?  @db.VarChar(100)
+  fecha_firma     DateTime @default(now()) @db.Timestamp()
+
+  // Relaciones
+  tramite Tramite @relation(fields: [id_tramite], references: [id_tramite], onDelete: Cascade)
+
+  @@map("firma_electronica")
+}
+
+model Observacion {
+  id_observacion   String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_tramite       String    @db.Uuid
+  creado_por       String    @db.Uuid
+  tipo             String    @db.VarChar(30)
+  descripcion      String    @db.Text
+  fecha_creacion   DateTime  @default(now()) @db.Timestamp()
+  resuelta         Boolean   @default(false)
+  fecha_resolucion DateTime? @db.Timestamp()
+  resuelto_por     String?   @db.Uuid
+  respuesta        String?   @db.Text
+
+  // Relaciones
+  tramite   Tramite  @relation(fields: [id_tramite], references: [id_tramite], onDelete: Cascade)
+  creador   Usuario  @relation("ObservacionCreador", fields: [creado_por], references: [id_usuario])
+  resolutor Usuario? @relation("ObservacionResolutor", fields: [resuelto_por], references: [id_usuario])
+
+  @@index([id_tramite])
+  @@map("observacion")
+}
+
+model Notificacion {
+  id_notificacion String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_usuario      String    @db.Uuid
+  id_tramite      String?   @db.Uuid
+  tipo            String    @db.VarChar(30)
+  titulo          String    @db.VarChar(255)
+  mensaje         String    @db.Text
+  visto           Boolean   @default(false)
+  fecha_creacion  DateTime  @default(now()) @db.Timestamp()
+  fecha_visto     DateTime? @db.Timestamp()
+
+  // Relaciones
+  usuario Usuario  @relation(fields: [id_usuario], references: [id_usuario], onDelete: Cascade)
+  tramite Tramite? @relation(fields: [id_tramite], references: [id_tramite], onDelete: Cascade)
+
+  @@index([id_usuario])
+  @@index([visto])
+  @@map("notificacion")
+}
