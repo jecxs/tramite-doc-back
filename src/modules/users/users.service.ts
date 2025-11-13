@@ -35,7 +35,9 @@ export class UsersService {
     });
 
     if (existeDni) {
-      throw new ConflictException(`Ya existe un usuario con el DNI ${createUserDto.dni}`);
+      throw new ConflictException(
+        `Ya existe un usuario con el DNI ${createUserDto.dni}`,
+      );
     }
 
     // Verificar que no exista un usuario con el mismo correo
@@ -285,7 +287,10 @@ export class UsersService {
 
     // Hashear la nueva contraseña si se proporciona
     if (updateUserDto.password) {
-      datosActualizacion.password = await bcrypt.hash(updateUserDto.password, 10);
+      datosActualizacion.password = await bcrypt.hash(
+        updateUserDto.password,
+        10,
+      );
     }
 
     // Actualizar usuario y roles en una transacción

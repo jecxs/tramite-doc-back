@@ -47,7 +47,10 @@ export class UsersController {
     @CurrentUser() currentUser: any,
   ) {
     // Si es RESP y no es ADMIN, solo puede ver usuarios de su área
-    if (currentUser.roles.includes('RESP') && !currentUser.roles.includes('ADMIN')) {
+    if (
+      currentUser.roles.includes('RESP') &&
+      !currentUser.roles.includes('ADMIN')
+    ) {
       filterDto.id_area = currentUser.id_area;
     }
 

@@ -85,9 +85,7 @@ export class AreasController {
       !currentUser.roles.includes('ADMIN')
     ) {
       if (currentUser.id_area !== id) {
-        throw new Error(
-          'No tiene permisos para ver usuarios de otras áreas',
-        );
+        throw new Error('No tiene permisos para ver usuarios de otras áreas');
       }
     }
 

@@ -21,12 +21,16 @@ export class CreateUserDto {
 
   @IsString({ message: 'Los nombres deben ser un texto' })
   @IsNotEmpty({ message: 'Los nombres son obligatorios' })
-  @MaxLength(100, { message: 'Los nombres no pueden tener más de 100 caracteres' })
+  @MaxLength(100, {
+    message: 'Los nombres no pueden tener más de 100 caracteres',
+  })
   nombres: string;
 
   @IsString({ message: 'Los apellidos deben ser un texto' })
   @IsNotEmpty({ message: 'Los apellidos son obligatorios' })
-  @MaxLength(100, { message: 'Los apellidos no pueden tener más de 100 caracteres' })
+  @MaxLength(100, {
+    message: 'Los apellidos no pueden tener más de 100 caracteres',
+  })
   apellidos: string;
 
   @IsEmail({}, { message: 'El correo debe ser válido' })
@@ -42,7 +46,9 @@ export class CreateUserDto {
   @IsString({ message: 'La contraseña debe ser un texto' })
   @IsNotEmpty({ message: 'La contraseña es obligatoria' })
   @MinLength(6, { message: 'La contraseña debe tener al menos 6 caracteres' })
-  @MaxLength(255, { message: 'La contraseña no puede tener más de 255 caracteres' })
+  @MaxLength(255, {
+    message: 'La contraseña no puede tener más de 255 caracteres',
+  })
   password: string;
 
   @IsUUID('4', { message: 'El ID del área debe ser un UUID válido' })
