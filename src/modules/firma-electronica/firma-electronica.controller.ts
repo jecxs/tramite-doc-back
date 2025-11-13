@@ -1,0 +1,98 @@
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Param,
+  UseGuards,
+  ParseUUIDPipe,
+  Req,
+} from '@nestjs/common';
+import { Request } from 'express';
+import { FirmaElectronicaService } from './firma-electronica.service';
+import { CreateFirmaElectronicaDto } from './dto/create-firma-electronica.dto';
+import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { RolesGuard } from '../../common/guards/roles.guard';
+import { Roles } from '../../common/decorators/roles.decorator';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
+
+@Controller('firma-electronica')
+@UseGuards(JwtAuthGuard, RolesGuard)
+export class FirmaElectronicaController {
+  constructor(
+    private readonly firmaElectronicaService: FirmaElectronicaService,
+  ) {}
+
+  /**
+   * Firmar un trámite electrónicamente
+   * POST /api/firma-electronica/tramite/:id/firmar
+   * Acceso: TRAB (solo el receptor del trámite)
+   */
+  @Post('tramite/:id/firmar')
+  @Roles('TRAB')
+  firmar(
+    @Param('id', ParseUUIDPipe) idTramite: string,
+    @Body() createFirmaDto: CreateFirmaElectronicaDto,
+    @CurrentUser('id_usuario') userId: string,
+    @Req() request: Request,
+  ) {
+    // Extraer IP del cliente
+    const ipAddress =
+      (request.headers['x-forwarded-for'] as string)?.split(',')[0] ||
+      request.ip ||
+      request.socket.remoteAddress ||
+      'IP desconocida';
+
+    // Extraer User-Agent
+    const userAgent = request.headers['user-agent'] || 'User-Agent desconocido';
+
+    return this.firmaElectronicaService.firmar(
+      idTramite,
+      createFirmaDto,
+      userId,
+      ipAddress,
+      userAgent,
+    );
+  }
+
+  /**
+   * Obtener firma electrónica de un trámite
+   * GET /api/firma-electronica/tramite/:id
+   * Acceso: ADMIN, RESP (remitente), TRAB (receptor)
+   */
+  @Get('tramite/:id')
+  @Roles('ADMIN', 'RESP', 'TRAB')
+  findByTramite(
+    @Param('id', ParseUUIDPipe) idTramite: string,
+    @CurrentUser('id_usuario') userId: string,
+    @CurrentUser('roles') userRoles: string[],
+  ) {
+    return this.firmaElectronicaService.findByTramite(
+      idTramite,
+      userId,
+      userRoles,
+    );
+  }
+
+  /**
+   * Verificar estado de firma de un trámite
+   * GET /api/firma-electronica/tramite/:id/verificar
+   * Acceso: Público (cualquier usuario autenticado puede verificar)
+   */
+  @Get('tramite/:id/verificar')
+  @Roles('ADMIN', 'RESP', 'TRAB')
+  verificarFirma(@Param('id', ParseUUIDPipe) idTramite: string) {
+    return this.firmaElectronicaService.verificarFirma(idTramite);
+  }
+
+  /**
+   * Obtener estadísticas de firmas electrónicas
+   * GET /api/firma-electronica/statistics
+   * Acceso: Solo ADMIN
+   */
+  @Get('statistics')
+  @Roles('ADMIN')
+  getStatistics() {
+    return this.firmaElectronicaService.getStatistics();
+  }
+}
