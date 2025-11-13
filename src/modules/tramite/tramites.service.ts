@@ -9,10 +9,14 @@ import { CreateTramiteDto } from './dto/create-tramite.dto';
 import { ReenviarTramiteDto } from './dto/reenviar-tramite.dto';
 import { AnularTramiteDto } from './dto/anular-tramite.dto';
 import { FilterTramiteDto } from './dto/filter-tramite.dto';
+import { NotificacionesService } from '../notificaciones/notificaciones.service';
 
 @Injectable()
 export class TramitesService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private notificacionesService: NotificacionesService,
+  ) {}
 
   /**
    * Crear un nuevo trámite (enviar documento a trabajador)
@@ -136,7 +140,22 @@ export class TramitesService {
       },
     });
 
-    // TODO: Crear notificación para el receptor (se implementará con WebSockets)
+    // Crear notificación para el receptor
+    await this.notificacionesService.notificarTramiteRecibido(
+      tramite.id_receptor,
+      tramite.id_tramite,
+      `${remitente.nombres} ${remitente.apellidos}`,
+      tramite.asunto,
+    );
+
+    // Si requiere firma, crear notificación adicional
+    if (tramite.requiere_firma) {
+      await this.notificacionesService.notificarDocumentoRequiereFirma(
+        tramite.id_receptor,
+        tramite.id_tramite,
+        tramite.asunto,
+      );
+    }
 
     return tramite;
   }
@@ -596,6 +615,14 @@ export class TramitesService {
       },
     });
 
+    // Notificar al receptor sobre el reenvío
+    await this.notificacionesService.notificarTramiteReenviado(
+      nuevoTramite.id_receptor,
+      nuevoTramite.id_tramite,
+      nuevoTramite.asunto,
+      numeroVersion,
+    );
+
     return nuevoTramite;
   }
 
@@ -653,6 +680,14 @@ export class TramitesService {
         realizado_por: userId,
       },
     });
+
+    // NUEVO: Notificar al receptor sobre la anulación
+    await this.notificacionesService.notificarTramiteAnulado(
+      tramite.id_receptor,
+      id,
+      tramite.asunto,
+      anularDto.motivo_anulacion,
+    );
 
     return tramiteAnulado;
   }

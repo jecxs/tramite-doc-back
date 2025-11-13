@@ -6,10 +6,14 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateFirmaElectronicaDto } from './dto/create-firma-electronica.dto';
+import { NotificacionesService } from '../notificaciones/notificaciones.service';
 
 @Injectable()
 export class FirmaElectronicaService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private notificacionesService: NotificacionesService,
+  ) {}
 
   /**
    * Crear firma electrónica para un trámite
@@ -31,7 +35,12 @@ export class FirmaElectronicaService {
             tipo: true,
           },
         },
-        receptor: true,
+        receptor: {
+          select: {
+            nombres: true,
+            apellidos: true,
+          },
+        },
         firma: true, // Verificar si ya existe firma
       },
     });
@@ -138,6 +147,14 @@ export class FirmaElectronicaService {
 
       return { firma, tramite: tramiteActualizado };
     });
+
+    // Notificar al remitente que el documento fue firmado
+    await this.notificacionesService.notificarDocumentoFirmado(
+      tramite.id_remitente,
+      idTramite,
+      `${tramite.receptor.nombres} ${tramite.receptor.apellidos}`,
+      tramite.asunto,
+    );
 
     return result;
   }

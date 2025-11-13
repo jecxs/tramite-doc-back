@@ -7,6 +7,7 @@ import { AreasModule } from './modules/areas/areas.module';
 import { DocumentosModule } from './modules/documents/documents.module';
 import { TramitesModule } from './modules/tramite/tramites.module';
 import { ObservacionesModule } from './modules/observacion/observaciones.module';
+import { NotificacionesModule } from './modules/notificaciones/notificaciones.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { ObservacionesModule } from './modules/observacion/observaciones.module'
     DocumentosModule,
     TramitesModule,
     ObservacionesModule,
+    NotificacionesModule,
   ],
   controllers: [],
   providers: [],

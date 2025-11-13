@@ -8,12 +8,14 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { CreateObservacionDto } from './dto/create-observacion.dto';
 import { ResponderObservacionDto } from './dto/responder-observacion.dto';
 import { NotificacionesGateway } from './notificaciones.gateway';
+import { NotificacionesService } from '../notificaciones/notificaciones.service';
 
 @Injectable()
 export class ObservacionesService {
   constructor(
     private prisma: PrismaService,
     private notificacionesGateway: NotificacionesGateway,
+    private notificacionesService: NotificacionesService,
   ) {}
 
   /**
@@ -34,7 +36,12 @@ export class ObservacionesService {
             tipo: true,
           },
         },
-        remitente: true,
+        remitente: {
+          select: {
+            nombres: true,
+            apellidos: true,
+          },
+        },
         receptor: {
           select: {
             id_usuario: true,
@@ -107,7 +114,15 @@ export class ObservacionesService {
       },
     });
 
-    // Enviar notificación en tiempo real al remitente vía WebSocket
+    // Crear notificación persistente en BD
+    await this.notificacionesService.notificarObservacionCreada(
+      tramite.id_remitente,
+      idTramite,
+      `${tramite.receptor.nombres} ${tramite.receptor.apellidos}`,
+      createObservacionDto.tipo,
+    );
+
+    // Enviar notificación en tiempo real vía WebSocket
     const notificacion = {
       id_observacion: observacion.id_observacion,
       tipo: observacion.tipo,
@@ -124,7 +139,6 @@ export class ObservacionesService {
       creador: observacion.creador,
     };
 
-    // Intentar enviar notificación WebSocket
     this.notificacionesGateway.enviarNotificacionAUsuario(
       tramite.id_remitente,
       notificacion,
@@ -253,7 +267,12 @@ export class ObservacionesService {
       include: {
         tramite: {
           include: {
-            remitente: true,
+            remitente: {
+              select: {
+                nombres: true,
+                apellidos: true,
+              },
+            },
             receptor: true,
           },
         },
@@ -316,6 +335,13 @@ export class ObservacionesService {
         },
       },
     });
+
+    // Crear notificación persistente en BD
+    await this.notificacionesService.notificarObservacionResuelta(
+      observacion.tramite.id_receptor,
+      observacion.tramite.id_tramite,
+      `${observacion.tramite.remitente.nombres} ${observacion.tramite.remitente.apellidos}`,
+    );
 
     // Enviar notificación WebSocket al trabajador
     const notificacion = {

@@ -87,7 +87,9 @@ export class NotificacionesGateway
       sockets.forEach((socketId) => {
         this.server.to(socketId).emit('observacion_resuelta', notificacion);
       });
-      this.logger.log(`Notificación de resolución enviada al usuario ${userId}`);
+      this.logger.log(
+        `Notificación de resolución enviada al usuario ${userId}`,
+      );
       return true;
     } else {
       this.logger.warn(`Usuario ${userId} no está conectado`);
