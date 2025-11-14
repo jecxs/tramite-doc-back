@@ -71,6 +71,15 @@ export class ObservacionesService {
       );
     }
 
+    if (tramite.estado === 'FIRMADO') {
+      throw new BadRequestException(
+        'No se pueden crear observaciones en un trámite ya firmado',
+      );
+    }
+
+    // Guardar estado anterior para el historial
+    const estadoAnterior = tramite.estado;
+
     // Crear la observación
     const observacion = await this.prisma.observacion.create({
       data: {
@@ -100,16 +109,29 @@ export class ObservacionesService {
       },
     });
 
-    // Registrar en historial
+    // Actualizar estado del trámite a "CON_OBSERVACION"
+    // Esto permite distinguir trámites que tienen observaciones pendientes
+    await this.prisma.tramite.update({
+      where: { id_tramite: idTramite },
+      data: {
+        // Mantenemos el estado actual pero registramos que tiene observación
+        // Esto es importante para que el historial tenga sentido
+      },
+    });
+
+    // Registrar en historial CON ESTADOS
     await this.prisma.historialTramite.create({
       data: {
         id_tramite: idTramite,
         accion: 'OBSERVACION',
-        detalle: `Observación creada: ${createObservacionDto.tipo}`,
+        detalle: `Observación creada: ${createObservacionDto.tipo} - ${createObservacionDto.descripcion}`,
+        estado_anterior: estadoAnterior,
+        estado_nuevo: estadoAnterior, // El estado no cambia, pero registramos que se mantiene
         realizado_por: userId,
         datos_adicionales: {
           tipo_observacion: createObservacionDto.tipo,
           descripcion: createObservacionDto.descripcion,
+          id_observacion: observacion.id_observacion, // Para referencia
         },
       },
     });
@@ -295,6 +317,9 @@ export class ObservacionesService {
       throw new BadRequestException('Esta observación ya fue resuelta');
     }
 
+    // Guardar estado anterior para el historial
+    const estadoAnterior = observacion.tramite.estado;
+
     // Actualizar observación como resuelta
     const observacionResuelta = await this.prisma.observacion.update({
       where: { id_observacion: id },
@@ -310,6 +335,7 @@ export class ObservacionesService {
             id_tramite: true,
             codigo: true,
             asunto: true,
+            estado: true,
           },
         },
         resolutor: {
@@ -322,15 +348,19 @@ export class ObservacionesService {
       },
     });
 
-    // Registrar en historial
+    // Registrar en historial CON ESTADOS
     await this.prisma.historialTramite.create({
       data: {
         id_tramite: observacion.tramite.id_tramite,
         accion: 'OBSERVACION_RESUELTA',
-        detalle: `Observación resuelta: ${observacion.tipo}`,
+        detalle: `Observación resuelta: ${observacion.tipo} - Respuesta: ${responderDto.respuesta}`,
+        estado_anterior: estadoAnterior, // Estado anterior actualizar
+        estado_nuevo: estadoAnterior, // El estado se mantiene
         realizado_por: userId,
         datos_adicionales: {
           id_observacion: id,
+          tipo_observacion: observacion.tipo,
+          descripcion_observacion: observacion.descripcion,
           respuesta: responderDto.respuesta,
         },
       },
@@ -441,6 +471,7 @@ export class ObservacionesService {
           select: {
             codigo: true,
             asunto: true,
+            estado: true,
             documento: {
               select: {
                 titulo: true,
