@@ -219,8 +219,6 @@ export class UsersService {
   }
   /**
     * Obtener todos los usuarios con rol TRABAJADOR
-    * Si es ADMIN: ve todos los trabajadores
-    * Si es RESP: solo ve trabajadores de su área
   */
   async getTrabajadores(currentUser: any) {
     // Primero, buscar el rol TRAB
@@ -232,7 +230,7 @@ export class UsersService {
       throw new NotFoundException('Rol TRAB no encontrado en el sistema');
     }
 
-    // Construir el whereClause
+    // Construir el whereClause base
     const whereClause: any = {
       activo: true,
       roles: {
@@ -242,15 +240,8 @@ export class UsersService {
       },
     };
 
-    // Si es RESP (no ADMIN), filtrar por área
-    if (
-      currentUser.roles.includes('RESP') &&
-      !currentUser.roles.includes('ADMIN')
-    ) {
-      whereClause.id_area = currentUser.id_area;
-    }
 
-    // Obtener trabajadores
+    // Obtener trabajadores con información completa
     const trabajadores = await this.prisma.usuario.findMany({
       where: whereClause,
       select: {
@@ -264,7 +255,7 @@ export class UsersService {
         area: {
           select: {
             id_area: true,
-            nombre: true, // ✅ El campo correcto es 'nombre', no 'nombre_area'
+            nombre: true,
           },
         },
         roles: {
@@ -279,9 +270,11 @@ export class UsersService {
           },
         },
       },
-      orderBy: {
-        apellidos: 'asc',
-      },
+      orderBy: [
+        // Ordenar primero por área, luego por apellido
+        { area: { nombre: 'asc' } },
+        { apellidos: 'asc' },
+      ],
     });
 
     // Formatear respuesta
@@ -297,8 +290,11 @@ export class UsersService {
         nombre: user.area.nombre,
       },
       roles: user.roles.map((ur) => ur.rol.codigo),
+      // Agregamos un campo calculado para mostrar en el frontend
+      nombre_completo: `${user.apellidos}, ${user.nombres}`,
     }));
   }
+
 
   /**
    * Actualizar un usuario (solo ADMIN)
