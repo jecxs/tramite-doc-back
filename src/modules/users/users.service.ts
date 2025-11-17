@@ -217,6 +217,88 @@ export class UsersService {
       })),
     };
   }
+  /**
+    * Obtener todos los usuarios con rol TRABAJADOR
+    * Si es ADMIN: ve todos los trabajadores
+    * Si es RESP: solo ve trabajadores de su área
+  */
+  async getTrabajadores(currentUser: any) {
+    // Primero, buscar el rol TRAB
+    const rolTrab = await this.prisma.rol.findUnique({
+      where: { codigo: 'TRAB' },
+    });
+
+    if (!rolTrab) {
+      throw new NotFoundException('Rol TRAB no encontrado en el sistema');
+    }
+
+    // Construir el whereClause
+    const whereClause: any = {
+      activo: true,
+      roles: {
+        some: {
+          id_rol: rolTrab.id_rol,
+        },
+      },
+    };
+
+    // Si es RESP (no ADMIN), filtrar por área
+    if (
+      currentUser.roles.includes('RESP') &&
+      !currentUser.roles.includes('ADMIN')
+    ) {
+      whereClause.id_area = currentUser.id_area;
+    }
+
+    // Obtener trabajadores
+    const trabajadores = await this.prisma.usuario.findMany({
+      where: whereClause,
+      select: {
+        id_usuario: true,
+        nombres: true,
+        apellidos: true,
+        dni: true,
+        correo: true,
+        telefono: true,
+        id_area: true,
+        area: {
+          select: {
+            id_area: true,
+            nombre: true, // ✅ El campo correcto es 'nombre', no 'nombre_area'
+          },
+        },
+        roles: {
+          select: {
+            rol: {
+              select: {
+                id_rol: true,
+                codigo: true,
+                nombre: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: {
+        apellidos: 'asc',
+      },
+    });
+
+    // Formatear respuesta
+    return trabajadores.map((user) => ({
+      id_usuario: user.id_usuario,
+      nombres: user.nombres,
+      apellidos: user.apellidos,
+      dni: user.dni,
+      correo: user.correo,
+      telefono: user.telefono,
+      area: {
+        id_area: user.area.id_area,
+        nombre: user.area.nombre,
+      },
+      roles: user.roles.map((ur) => ur.rol.codigo),
+    }));
+  }
 
   /**
    * Actualizar un usuario (solo ADMIN)

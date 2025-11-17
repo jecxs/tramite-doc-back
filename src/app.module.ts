@@ -8,6 +8,7 @@ import { DocumentosModule } from './modules/documents/documents.module';
 import { TramitesModule } from './modules/tramite/tramites.module';
 import { ObservacionesModule } from './modules/observacion/observaciones.module';
 import { NotificacionesModule } from './modules/notificaciones/notificaciones.module';
+import { TipoDocumentoModule } from './modules/document-type/tipo-documento.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { NotificacionesModule } from './modules/notificaciones/notificaciones.mo
     TramitesModule,
     ObservacionesModule,
     NotificacionesModule,
+    TipoDocumentoModule,
   ],
   controllers: [],
   providers: [],

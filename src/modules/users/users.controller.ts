@@ -57,6 +57,7 @@ export class UsersController {
     return this.usersService.findAll(filterDto);
   }
 
+
   /**
    * Obtener estadísticas de usuarios
    * GET /api/users/statistics
@@ -66,6 +67,18 @@ export class UsersController {
   @Roles('ADMIN')
   getStatistics() {
     return this.usersService.getStatistics();
+  }
+
+
+  /**
+   * Obtener todos los trabajadores (usuarios con rol TRAB)
+   * GET /api/usuarios/rol/trabajadores
+   * Acceso: ADMIN, RESP
+   */
+  @Get('rol/trabajadores')
+  @Roles('ADMIN', 'RESP')
+  async getTrabajadores(@CurrentUser() currentUser: any) {
+    return this.usersService.getTrabajadores(currentUser);
   }
 
   /**
