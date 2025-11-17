@@ -172,11 +172,7 @@ export class ObservacionesService {
   /**
    * Listar observaciones de un trámite
    */
-  async findByTramite(
-    idTramite: string,
-    userId: string,
-    userRoles: string[],
-  ) {
+  async findByTramite(idTramite: string, userId: string, userRoles: string[]) {
     const tramite = await this.prisma.tramite.findUnique({
       where: { id_tramite: idTramite },
     });
@@ -414,12 +410,7 @@ export class ObservacionesService {
       }
     }
 
-    const [
-      total,
-      resueltas,
-      pendientes,
-      porTipo,
-    ] = await Promise.all([
+    const [total, resueltas, pendientes, porTipo] = await Promise.all([
       this.prisma.observacion.count({ where }),
       this.prisma.observacion.count({ where: { ...where, resuelta: true } }),
       this.prisma.observacion.count({ where: { ...where, resuelta: false } }),

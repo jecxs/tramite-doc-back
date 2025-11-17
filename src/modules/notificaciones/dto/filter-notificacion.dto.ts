@@ -7,16 +7,19 @@ export class FilterNotificacionDto {
   visto?: boolean; // Filtrar por visto/no visto
 
   @IsOptional()
-  @IsIn([
-    'TRAMITE_RECIBIDO',
-    'TRAMITE_FIRMADO',
-    'TRAMITE_ANULADO',
-    'OBSERVACION_CREADA',
-    'OBSERVACION_RESUELTA',
-    'DOCUMENTO_REQUIERE_FIRMA',
-    'TRAMITE_REENVIADO',
-  ], {
-    message: 'Tipo de notificación inválido',
-  })
+  @IsIn(
+    [
+      'TRAMITE_RECIBIDO',
+      'TRAMITE_FIRMADO',
+      'TRAMITE_ANULADO',
+      'OBSERVACION_CREADA',
+      'OBSERVACION_RESUELTA',
+      'DOCUMENTO_REQUIERE_FIRMA',
+      'TRAMITE_REENVIADO',
+    ],
+    {
+      message: 'Tipo de notificación inválido',
+    },
+  )
   tipo?: string; // Filtrar por tipo
 }

@@ -18,17 +18,20 @@ export class CreateNotificacionDto {
 
   @IsString({ message: 'El tipo debe ser un texto' })
   @IsNotEmpty({ message: 'El tipo es obligatorio' })
-  @IsIn([
-    'TRAMITE_RECIBIDO',
-    'TRAMITE_FIRMADO',
-    'TRAMITE_ANULADO',
-    'OBSERVACION_CREADA',
-    'OBSERVACION_RESUELTA',
-    'DOCUMENTO_REQUIERE_FIRMA',
-    'TRAMITE_REENVIADO',
-  ], {
-    message: 'Tipo de notificación inválido',
-  })
+  @IsIn(
+    [
+      'TRAMITE_RECIBIDO',
+      'TRAMITE_FIRMADO',
+      'TRAMITE_ANULADO',
+      'OBSERVACION_CREADA',
+      'OBSERVACION_RESUELTA',
+      'DOCUMENTO_REQUIERE_FIRMA',
+      'TRAMITE_REENVIADO',
+    ],
+    {
+      message: 'Tipo de notificación inválido',
+    },
+  )
   tipo: string;
 
   @IsString({ message: 'El título debe ser un texto' })

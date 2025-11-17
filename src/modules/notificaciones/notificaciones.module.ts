@@ -10,5 +10,3 @@ import { ObservacionesModule } from '../observacion/observaciones.module';
   exports: [NotificacionesService],
 })
 export class NotificacionesModule {}
-
-

@@ -166,7 +166,11 @@ export class TramitesService {
    * - RESP: Ve trámites enviados por él o recibidos en su área
    * - TRAB: Ve solo trámites donde es receptor
    */
-  async findAll(filterDto: FilterTramiteDto, userId: string, userRoles: string[]) {
+  async findAll(
+    filterDto: FilterTramiteDto,
+    userId: string,
+    userRoles: string[],
+  ) {
     const where: any = {};
 
     // Aplicar filtros de permisos según rol
@@ -524,7 +528,9 @@ export class TramitesService {
 
     // Solo el remitente original puede reenviar
     if (tramiteOriginal.id_remitente !== userId) {
-      throw new ForbiddenException('Solo el remitente puede reenviar el trámite');
+      throw new ForbiddenException(
+        'Solo el remitente puede reenviar el trámite',
+      );
     }
 
     // Verificar que el nuevo documento existe
@@ -630,7 +636,12 @@ export class TramitesService {
    * Anular un trámite
    * Solo el remitente o ADMIN pueden anular
    */
-  async anular(id: string, anularDto: AnularTramiteDto, userId: string, userRoles: string[]) {
+  async anular(
+    id: string,
+    anularDto: AnularTramiteDto,
+    userId: string,
+    userRoles: string[],
+  ) {
     const tramite = await this.prisma.tramite.findUnique({
       where: { id_tramite: id },
     });
@@ -713,27 +724,20 @@ export class TramitesService {
       }
     }
 
-    const [
-      total,
-      enviados,
-      abiertos,
-      leidos,
-      firmados,
-      anulados,
-      porArea,
-    ] = await Promise.all([
-      this.prisma.tramite.count({ where }),
-      this.prisma.tramite.count({ where: { ...where, estado: 'ENVIADO' } }),
-      this.prisma.tramite.count({ where: { ...where, estado: 'ABIERTO' } }),
-      this.prisma.tramite.count({ where: { ...where, estado: 'LEIDO' } }),
-      this.prisma.tramite.count({ where: { ...where, estado: 'FIRMADO' } }),
-      this.prisma.tramite.count({ where: { ...where, estado: 'ANULADO' } }),
-      this.prisma.tramite.groupBy({
-        by: ['id_area_remitente'],
-        where,
-        _count: true,
-      }),
-    ]);
+    const [total, enviados, abiertos, leidos, firmados, anulados, porArea] =
+      await Promise.all([
+        this.prisma.tramite.count({ where }),
+        this.prisma.tramite.count({ where: { ...where, estado: 'ENVIADO' } }),
+        this.prisma.tramite.count({ where: { ...where, estado: 'ABIERTO' } }),
+        this.prisma.tramite.count({ where: { ...where, estado: 'LEIDO' } }),
+        this.prisma.tramite.count({ where: { ...where, estado: 'FIRMADO' } }),
+        this.prisma.tramite.count({ where: { ...where, estado: 'ANULADO' } }),
+        this.prisma.tramite.groupBy({
+          by: ['id_area_remitente'],
+          where,
+          _count: true,
+        }),
+      ]);
 
     // Obtener nombres de áreas
     const areas = await this.prisma.area.findMany({
@@ -755,7 +759,8 @@ export class TramitesService {
       },
       por_area: porArea.map((a) => ({
         id_area: a.id_area_remitente,
-        nombre: areas.find((area) => area.id_area === a.id_area_remitente)?.nombre,
+        nombre: areas.find((area) => area.id_area === a.id_area_remitente)
+          ?.nombre,
         cantidad: a._count,
       })),
     };

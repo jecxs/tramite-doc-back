@@ -58,7 +58,9 @@ export class FirmaElectronicaService {
 
     // Verificar que el trámite requiere firma
     if (!tramite.requiere_firma) {
-      throw new BadRequestException('Este trámite no requiere firma electrónica');
+      throw new BadRequestException(
+        'Este trámite no requiere firma electrónica',
+      );
     }
 
     // Verificar que el trámite está en estado LEIDO
@@ -229,11 +231,11 @@ export class FirmaElectronicaService {
       estado: tramite.estado,
       firma: tramite.firma
         ? {
-          fecha_firma: tramite.firma.fecha_firma,
-          ip_address: tramite.firma.ip_address,
-          navegador: tramite.firma.navegador,
-          dispositivo: tramite.firma.dispositivo,
-        }
+            fecha_firma: tramite.firma.fecha_firma,
+            ip_address: tramite.firma.ip_address,
+            navegador: tramite.firma.navegador,
+            dispositivo: tramite.firma.dispositivo,
+          }
         : null,
       documento: {
         titulo: tramite.documento.titulo,
@@ -339,7 +341,8 @@ export class FirmaElectronicaService {
     // Detectar tipo de dispositivo
     let deviceType = 'Desktop';
     if (ua.includes('mobile')) deviceType = 'Mobile';
-    else if (ua.includes('tablet') || ua.includes('ipad')) deviceType = 'Tablet';
+    else if (ua.includes('tablet') || ua.includes('ipad'))
+      deviceType = 'Tablet';
 
     return `${deviceType} - ${os}`;
   }
