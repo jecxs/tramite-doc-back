@@ -841,7 +841,7 @@ export class TramitesService {
 
     // Crear trámites en una transacción
     const tramitesCreados = await this.prisma.$transaction(async (tx) => {
-      const tramites = [];
+      const tramites: any[] = [];
 
       for (const receptor of receptores) {
         // Generar código único para cada trámite
