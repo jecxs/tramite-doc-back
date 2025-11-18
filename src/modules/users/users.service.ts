@@ -218,8 +218,8 @@ export class UsersService {
     };
   }
   /**
-    * Obtener todos los usuarios con rol TRABAJADOR
-  */
+   * Obtener todos los usuarios con rol TRABAJADOR
+   */
   async getTrabajadores(currentUser: any) {
     // Primero, buscar el rol TRAB
     const rolTrab = await this.prisma.rol.findUnique({
@@ -239,7 +239,6 @@ export class UsersService {
         },
       },
     };
-
 
     // Obtener trabajadores con información completa
     const trabajadores = await this.prisma.usuario.findMany({
@@ -294,7 +293,6 @@ export class UsersService {
       nombre_completo: `${user.apellidos}, ${user.nombres}`,
     }));
   }
-
 
   /**
    * Actualizar un usuario (solo ADMIN)

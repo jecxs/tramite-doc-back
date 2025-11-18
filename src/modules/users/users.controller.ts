@@ -57,7 +57,6 @@ export class UsersController {
     return this.usersService.findAll(filterDto);
   }
 
-
   /**
    * Obtener estadísticas de usuarios
    * GET /api/users/statistics
@@ -68,7 +67,6 @@ export class UsersController {
   getStatistics() {
     return this.usersService.getStatistics();
   }
-
 
   /**
    * Obtener todos los trabajadores (usuarios con rol TRAB)

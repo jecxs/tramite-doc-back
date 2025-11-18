@@ -10,6 +10,7 @@ import { ReenviarTramiteDto } from './dto/reenviar-tramite.dto';
 import { AnularTramiteDto } from './dto/anular-tramite.dto';
 import { FilterTramiteDto } from './dto/filter-tramite.dto';
 import { NotificacionesService } from '../notificaciones/notificaciones.service';
+import { CreateTramiteBulkDto } from './dto/create-tramite-bulk.dto';
 
 @Injectable()
 export class TramitesService {
@@ -763,6 +764,170 @@ export class TramitesService {
           ?.nombre,
         cantidad: a._count,
       })),
+    };
+  }
+  /**
+   * Crear múltiples trámites (envío masivo) con el mismo documento
+   * Un documento se envía a múltiples receptores
+   */
+  async createBulk(createBulkDto: CreateTramiteBulkDto, userId: string) {
+    // Verificar que el documento existe
+    const documento = await this.prisma.documento.findUnique({
+      where: { id_documento: createBulkDto.id_documento },
+      include: {
+        tipo: true,
+        creador: {
+          include: {
+            area: true,
+          },
+        },
+      },
+    });
+
+    if (!documento) {
+      throw new NotFoundException(
+        `Documento con ID ${createBulkDto.id_documento} no encontrado`,
+      );
+    }
+
+    // Verificar que todos los receptores existen y son trabajadores
+    const receptores = await this.prisma.usuario.findMany({
+      where: {
+        id_usuario: {
+          in: createBulkDto.id_receptores,
+        },
+        activo: true,
+      },
+      include: {
+        roles: {
+          include: {
+            rol: true,
+          },
+        },
+      },
+    });
+
+    // Validar que se encontraron todos los receptores
+    if (receptores.length !== createBulkDto.id_receptores.length) {
+      throw new NotFoundException(
+        'Uno o más receptores no fueron encontrados o no están activos',
+      );
+    }
+
+    // Validar que todos sean trabajadores
+    const todosEsTrabajadores = receptores.every((r) =>
+      r.roles.some((ur) => ur.rol.codigo === 'TRAB'),
+    );
+
+    if (!todosEsTrabajadores) {
+      throw new BadRequestException(
+        'Todos los receptores deben ser trabajadores (rol TRAB)',
+      );
+    }
+
+    // Obtener información del remitente
+    const remitente = await this.prisma.usuario.findUnique({
+      where: { id_usuario: userId },
+      include: {
+        area: true,
+      },
+    });
+
+    if (!remitente) {
+      throw new NotFoundException('Remitente no encontrado');
+    }
+
+    const year = new Date().getFullYear();
+
+    // Crear trámites en una transacción
+    const tramitesCreados = await this.prisma.$transaction(async (tx) => {
+      const tramites = [];
+
+      for (const receptor of receptores) {
+        // Generar código único para cada trámite
+        const count = await tx.tramite.count();
+        const codigo = `TRAM-${year}-${String(count + 1).padStart(6, '0')}`;
+
+        // Crear el trámite
+        const tramite = await tx.tramite.create({
+          data: {
+            codigo,
+            id_documento: createBulkDto.id_documento,
+            id_remitente: userId,
+            id_area_remitente: remitente.id_area,
+            id_receptor: receptor.id_usuario,
+            asunto: createBulkDto.asunto,
+            mensaje: createBulkDto.mensaje,
+            estado: 'ENVIADO',
+            requiere_firma: documento.tipo.requiere_firma,
+            requiere_respuesta: documento.tipo.requiere_respuesta,
+          },
+          include: {
+            documento: {
+              include: {
+                tipo: true,
+              },
+            },
+            remitente: {
+              select: {
+                id_usuario: true,
+                nombres: true,
+                apellidos: true,
+                correo: true,
+              },
+            },
+            receptor: {
+              select: {
+                id_usuario: true,
+                nombres: true,
+                apellidos: true,
+                correo: true,
+              },
+            },
+            areaRemitente: true,
+          },
+        });
+
+        // Crear entrada en historial
+        await tx.historialTramite.create({
+          data: {
+            id_tramite: tramite.id_tramite,
+            accion: 'CREACION',
+            detalle: 'Trámite creado y enviado (envío masivo)',
+            estado_nuevo: 'ENVIADO',
+            realizado_por: userId,
+          },
+        });
+
+        tramites.push(tramite);
+      }
+
+      return tramites;
+    });
+
+    // Crear notificaciones para todos los receptores
+    for (const tramite of tramitesCreados) {
+      await this.notificacionesService.notificarTramiteRecibido(
+        tramite.id_receptor,
+        tramite.id_tramite,
+        `${remitente.nombres} ${remitente.apellidos}`,
+        tramite.asunto,
+      );
+
+      // Si requiere firma, notificar también
+      if (tramite.requiere_firma) {
+        await this.notificacionesService.notificarDocumentoRequiereFirma(
+          tramite.id_receptor,
+          tramite.id_tramite,
+          tramite.asunto,
+        );
+      }
+    }
+
+    return {
+      message: `Se crearon ${tramitesCreados.length} trámites exitosamente`,
+      total: tramitesCreados.length,
+      tramites: tramitesCreados,
     };
   }
 }

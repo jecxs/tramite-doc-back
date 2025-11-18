@@ -18,6 +18,7 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { CreateTramiteBulkDto } from './dto/create-tramite-bulk.dto';
 
 @Controller('tramites')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -36,6 +37,19 @@ export class TramitesController {
     @CurrentUser('id_usuario') userId: string,
   ) {
     return this.tramitesService.create(createTramiteDto, userId);
+  }
+  /**
+   * Crear múltiples trámites (envío masivo)
+   * POST /api/tramites/bulk
+   * Acceso: ADMIN, RESP
+   */
+  @Post('bulk')
+  @Roles('ADMIN', 'RESP')
+  createBulk(
+    @Body() createBulkDto: CreateTramiteBulkDto,
+    @CurrentUser('id_usuario') userId: string,
+  ) {
+    return this.tramitesService.createBulk(createBulkDto, userId);
   }
 
   /**
