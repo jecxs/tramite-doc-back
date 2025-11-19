@@ -425,11 +425,63 @@ export class TramitesService {
       throw new BadRequestException('El trámite ya fue abierto anteriormente');
     }
 
+    // ✅ SOLUCIÓN: Usar SOLO include (sin mezclar con select)
     const tramiteActualizado = await this.prisma.tramite.update({
       where: { id_tramite: id },
       data: {
         estado: 'ABIERTO',
         fecha_abierto: new Date(),
+      },
+      include: {
+        documento: {
+          include: {
+            tipo: true,
+            creador: true, // ✅ CAMBIO: usar include simple, no select
+          },
+        },
+        remitente: {
+          include: {
+            area: true, // ✅ CAMBIO: solo include, sin select arriba
+          },
+        },
+        receptor: {
+          include: {
+            area: true, // ✅ CAMBIO: solo include, sin select arriba
+          },
+        },
+        areaRemitente: true,
+        tramiteOriginal: {
+          include: {
+            documento: true, // ✅ CAMBIO: include simple
+          },
+        },
+        reenvios: {
+          include: {
+            documento: true, // ✅ CAMBIO: include simple
+          },
+          orderBy: {
+            numero_version: 'asc',
+          },
+        },
+        anuladoPorUsuario: true, // ✅ CAMBIO: include simple
+        historial: {
+          include: {
+            usuario: true, // ✅ CAMBIO: include simple
+          },
+          orderBy: {
+            fecha: 'desc',
+          },
+        },
+        observaciones: {
+          include: {
+            creador: true, // ✅ CAMBIO: include simple
+            resolutor: true, // ✅ CAMBIO: include simple
+          },
+          orderBy: {
+            fecha_creacion: 'desc',
+          },
+        },
+        firma: true,
       },
     });
 
@@ -447,6 +499,8 @@ export class TramitesService {
 
     return tramiteActualizado;
   }
+
+
 
   /**
    * Marcar trámite como leído
@@ -475,11 +529,63 @@ export class TramitesService {
       );
     }
 
+    // ✅ USAR EL MISMO INCLUDE
     const tramiteActualizado = await this.prisma.tramite.update({
       where: { id_tramite: id },
       data: {
         estado: 'LEIDO',
         fecha_leido: new Date(),
+      },
+      include: {
+        documento: {
+          include: {
+            tipo: true,
+            creador: true,
+          },
+        },
+        remitente: {
+          include: {
+            area: true,
+          },
+        },
+        receptor: {
+          include: {
+            area: true,
+          },
+        },
+        areaRemitente: true,
+        tramiteOriginal: {
+          include: {
+            documento: true,
+          },
+        },
+        reenvios: {
+          include: {
+            documento: true,
+          },
+          orderBy: {
+            numero_version: 'asc',
+          },
+        },
+        anuladoPorUsuario: true,
+        historial: {
+          include: {
+            usuario: true,
+          },
+          orderBy: {
+            fecha: 'desc',
+          },
+        },
+        observaciones: {
+          include: {
+            creador: true,
+            resolutor: true,
+          },
+          orderBy: {
+            fecha_creacion: 'desc',
+          },
+        },
+        firma: true,
       },
     });
 
@@ -497,6 +603,7 @@ export class TramitesService {
 
     return tramiteActualizado;
   }
+
 
   /**
    * Reenviar trámite con documento corregido
