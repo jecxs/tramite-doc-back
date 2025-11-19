@@ -11,6 +11,9 @@ import {
   UseInterceptors,
   UploadedFile,
   BadRequestException,
+  Res,
+  StreamableFile,
+  Header,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { DocumentosService } from './documentos.service';
@@ -132,4 +135,26 @@ export class DocumentosController {
   ) {
     return this.documentosService.remove(id, userId);
   }
+  /**
+   * Obtener contenido del documento (proxy para evitar CORS)
+   * GET /api/documentos/:id/content
+   */
+  @Get(':id/content')
+  @Roles('ADMIN', 'RESP', 'TRAB')
+  @Header('Cache-Control', 'no-cache')
+  @Header('Access-Control-Allow-Origin', '*')
+  async getDocumentContent(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser('id_usuario') userId: string,
+  ): Promise<StreamableFile> {
+    const { buffer, contentType, fileName } =
+      await this.documentosService.getDocumentContent(id, userId);
+
+    return new StreamableFile(buffer, {
+      type: contentType,
+      disposition: `inline; filename="${fileName}"`,
+    });
+  }
+
+
 }

@@ -89,6 +89,7 @@ export class R2Service {
       const command = new GetObjectCommand({
         Bucket: this.bucketName,
         Key: key,
+
       });
 
       const response = await this.r2Client.send(command);
@@ -122,12 +123,11 @@ export class R2Service {
       const command = new GetObjectCommand({
         Bucket: this.bucketName,
         Key: key,
+        ResponseContentDisposition: 'inline', // Agregar esta línea
+        ResponseCacheControl: 'no-cache', // Agregar esta línea
       });
 
       const url = await getSignedUrl(this.r2Client, command, { expiresIn });
-
-      this.logger.log(`URL firmada generada para: ${key}`);
-
       return url;
     } catch (error) {
       this.logger.error(`Error al generar URL firmada: ${error.message}`);

@@ -435,4 +435,69 @@ export class DocumentosService {
       })),
     };
   }
+  // src/modules/documents/documentos.service.ts
+  async getDocumentContent(id: string, userId: string) {
+    const documento = await this.prisma.documento.findUnique({
+      where: { id_documento: id },
+      include: {
+        tramites: {
+          include: {
+            remitente: true,
+            receptor: true,
+          },
+        },
+      },
+    });
+
+    if (!documento) {
+      throw new NotFoundException(`Documento con ID ${id} no encontrado`);
+    }
+
+    // Verificar permisos: el documento puede ser descargado por:
+    // 1. El creador del documento
+    // 2. El remitente de un trámite que use este documento
+    // 3. El receptor de un trámite que use este documento
+    const tienePermiso =
+      documento.creado_por === userId ||
+      documento.tramites.some(
+        (t) => t.id_remitente === userId || t.id_receptor === userId,
+      );
+
+    if (!tienePermiso) {
+      throw new BadRequestException(
+        'No tiene permisos para ver este documento',
+      );
+    }
+
+    // Descargar desde R2
+    const buffer = await this.r2Service.downloadFile(documento.ruta_archivo);
+
+    // Determinar content type basado en la extensión
+    let contentType = 'application/octet-stream';
+    switch (documento.extension.toLowerCase()) {
+      case '.pdf':
+        contentType = 'application/pdf';
+        break;
+      case '.xlsx':
+      case '.xls':
+        contentType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+        break;
+      case '.docx':
+        contentType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+        break;
+      case '.png':
+        contentType = 'image/png';
+        break;
+      case '.jpg':
+      case '.jpeg':
+        contentType = 'image/jpeg';
+        break;
+    }
+
+    return {
+      buffer,
+      contentType,
+      fileName: documento.nombre_archivo,
+    };
+  }
 }

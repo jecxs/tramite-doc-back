@@ -9,10 +9,13 @@ import { AppModule } from './app.module';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  // Cors para Next.js
+  // src/main.ts - Actualizar configuración CORS
   app.enableCors({
     origin: ['http://localhost:3001', 'http://localhost:3000'],
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
+    exposedHeaders: ['Content-Disposition'],
   });
 
   // Habilitar validación global de DTOs
