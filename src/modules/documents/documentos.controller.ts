@@ -11,10 +11,11 @@ import {
   UseInterceptors,
   UploadedFile,
   BadRequestException,
-  Res,
   StreamableFile,
   Header,
+  Res,
 } from '@nestjs/common';
+import { Response } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { DocumentosService } from './documentos.service';
 import { UploadDocumentoDto } from './dto/upload-documento.dto';
@@ -23,11 +24,12 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { R2Service } from '../../common/services/r2.service';
 
 @Controller('documentos')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class DocumentosController {
-  constructor(private readonly documentosService: DocumentosService) {}
+  constructor(private readonly documentosService: DocumentosService,private readonly r2Service: R2Service) {}
 
   /**
    * Subir un nuevo documento
@@ -136,25 +138,70 @@ export class DocumentosController {
     return this.documentosService.remove(id, userId);
   }
   /**
-   * Obtener contenido del documento (proxy para evitar CORS)
+   * NUEVO: Servir contenido del documento directamente (proxy)
    * GET /api/documentos/:id/content
+   * Acceso: ADMIN, RESP, TRAB (según permisos del documento/trámite)
    */
   @Get(':id/content')
   @Roles('ADMIN', 'RESP', 'TRAB')
-  @Header('Cache-Control', 'no-cache')
-  @Header('Access-Control-Allow-Origin', '*')
   async getDocumentContent(
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentUser('id_usuario') userId: string,
+    @Res({ passthrough: true }) res: Response,
   ): Promise<StreamableFile> {
-    const { buffer, contentType, fileName } =
-      await this.documentosService.getDocumentContent(id, userId);
+    // Verificar permisos del documento
+    const documento = await this.documentosService.findOne(id);
 
-    return new StreamableFile(buffer, {
-      type: contentType,
-      disposition: `inline; filename="${fileName}"`,
+    // Verificar que el usuario tenga permisos (igual que en getDownloadUrl)
+    const tramites = await this.documentosService.getTramitesByDocumento(id);
+
+    const tienePermiso =
+      documento.creado_por === userId ||
+      tramites.some(
+        (t) => t.id_remitente === userId || t.id_receptor === userId,
+      );
+
+    if (!tienePermiso) {
+      throw new BadRequestException(
+        'No tiene permisos para acceder a este documento',
+      );
+    }
+
+    // Descargar archivo de R2
+    const fileBuffer = await this.r2Service.downloadFile(documento.ruta_archivo);
+
+    // Configurar headers apropiados
+    res.set({
+      'Content-Type': this.getContentType(documento.extension),
+      'Content-Disposition': `inline; filename="${encodeURIComponent(documento.nombre_archivo)}"`,
+      'Cache-Control': 'private, max-age=3600',
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET',
     });
+
+    return new StreamableFile(fileBuffer);
   }
+
+  /**
+   * Helper para obtener Content-Type según extensión
+   */
+  private getContentType(extension: string): string {
+    const contentTypes: Record<string, string> = {
+      '.pdf': 'application/pdf',
+      '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      '.xls': 'application/vnd.ms-excel',
+      '.doc': 'application/msword',
+      '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      '.png': 'image/png',
+      '.jpg': 'image/jpeg',
+      '.jpeg': 'image/jpeg',
+      '.csv': 'text/csv',
+      '.zip': 'application/zip',
+    };
+
+    return contentTypes[extension.toLowerCase()] || 'application/octet-stream';
+  }
+
 
 
 }
