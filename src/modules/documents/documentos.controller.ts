@@ -29,7 +29,10 @@ import { R2Service } from '../../common/services/r2.service';
 @Controller('documentos')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class DocumentosController {
-  constructor(private readonly documentosService: DocumentosService,private readonly r2Service: R2Service) {}
+  constructor(
+    private readonly documentosService: DocumentosService,
+    private readonly r2Service: R2Service,
+  ) {}
 
   /**
    * Subir un nuevo documento
@@ -168,7 +171,9 @@ export class DocumentosController {
     }
 
     // Descargar archivo de R2
-    const fileBuffer = await this.r2Service.downloadFile(documento.ruta_archivo);
+    const fileBuffer = await this.r2Service.downloadFile(
+      documento.ruta_archivo,
+    );
 
     // Configurar headers apropiados
     res.set({
@@ -188,10 +193,12 @@ export class DocumentosController {
   private getContentType(extension: string): string {
     const contentTypes: Record<string, string> = {
       '.pdf': 'application/pdf',
-      '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      '.xlsx':
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       '.xls': 'application/vnd.ms-excel',
       '.doc': 'application/msword',
-      '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      '.docx':
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
       '.png': 'image/png',
       '.jpg': 'image/jpeg',
       '.jpeg': 'image/jpeg',
@@ -201,7 +208,4 @@ export class DocumentosController {
 
     return contentTypes[extension.toLowerCase()] || 'application/octet-stream';
   }
-
-
-
 }

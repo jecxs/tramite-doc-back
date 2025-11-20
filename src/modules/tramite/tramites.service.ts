@@ -500,8 +500,6 @@ export class TramitesService {
     return tramiteActualizado;
   }
 
-
-
   /**
    * Marcar trámite como leído
    * Se ejecuta cuando el receptor lee el documento completo
@@ -603,7 +601,6 @@ export class TramitesService {
 
     return tramiteActualizado;
   }
-
 
   /**
    * Reenviar trámite con documento corregido

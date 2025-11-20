@@ -5,7 +5,7 @@ import { IsNotEmpty, IsString, IsOptional, IsBoolean } from 'class-validator';
  * DTO mejorado para responder observaciones
  * Permite responder solo con texto O responder + reenviar documento corregido
  */
-export class ResponderObservacionDto {
+export class ResponderObservacionMejoradoDto {
   @IsString({ message: 'La respuesta debe ser un texto' })
   @IsNotEmpty({ message: 'La respuesta es obligatoria' })
   respuesta: string;

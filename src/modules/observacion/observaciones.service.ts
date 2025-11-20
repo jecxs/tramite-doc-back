@@ -280,6 +280,7 @@ export class ObservacionesService {
     responderDto: ResponderObservacionDto,
     userId: string,
   ) {
+    // 1. Obtener la observación con información completa
     const observacion = await this.prisma.observacion.findUnique({
       where: { id_observacion: id },
       include: {
@@ -289,9 +290,15 @@ export class ObservacionesService {
               select: {
                 nombres: true,
                 apellidos: true,
+                area: true,
               },
             },
             receptor: true,
+            documento: {
+              include: {
+                tipo: true,
+              },
+            },
           },
         },
       },
@@ -301,82 +308,207 @@ export class ObservacionesService {
       throw new NotFoundException(`Observación con ID ${id} no encontrada`);
     }
 
-    // Solo el remitente puede responder
+    // 2. Verificar permisos: solo el remitente puede responder
     if (observacion.tramite.id_remitente !== userId) {
       throw new ForbiddenException(
         'Solo el remitente del trámite puede responder observaciones',
       );
     }
 
-    // Verificar que no esté ya resuelta
+    // 3. Verificar que no esté ya resuelta
     if (observacion.resuelta) {
       throw new BadRequestException('Esta observación ya fue resuelta');
     }
 
-    // Guardar estado anterior para el historial
+    // 4. Validación: si incluye reenvío, debe haber documento
+    if (responderDto.incluye_reenvio && !responderDto.id_documento_corregido) {
+      throw new BadRequestException(
+        'Debe proporcionar un documento corregido cuando incluye_reenvio es true',
+      );
+    }
+
+    // 5. Guardar estado anterior
     const estadoAnterior = observacion.tramite.estado;
 
-    // Actualizar observación como resuelta
-    const observacionResuelta = await this.prisma.observacion.update({
-      where: { id_observacion: id },
-      data: {
-        resuelta: true,
-        fecha_resolucion: new Date(),
-        resuelto_por: userId,
-        respuesta: responderDto.respuesta,
-      },
-      include: {
-        tramite: {
-          select: {
-            id_tramite: true,
-            codigo: true,
-            asunto: true,
-            estado: true,
-          },
-        },
-        resolutor: {
-          select: {
-            nombres: true,
-            apellidos: true,
-            correo: true,
-          },
-        },
-      },
-    });
-
-    // Registrar en historial CON ESTADOS
-    await this.prisma.historialTramite.create({
-      data: {
-        id_tramite: observacion.tramite.id_tramite,
-        accion: 'OBSERVACION_RESUELTA',
-        detalle: `Observación resuelta: ${observacion.tipo} - Respuesta: ${responderDto.respuesta}`,
-        estado_anterior: estadoAnterior, // Estado anterior actualizar
-        estado_nuevo: estadoAnterior, // El estado se mantiene
-        realizado_por: userId,
-        datos_adicionales: {
-          id_observacion: id,
-          tipo_observacion: observacion.tipo,
-          descripcion_observacion: observacion.descripcion,
+    // 6. Ejecutar en transacción CON TIPADO CORRECTO
+    const resultado = await this.prisma.$transaction(async (tx) => {
+      // 6.1. Actualizar observación como resuelta
+      const observacionResuelta = await tx.observacion.update({
+        where: { id_observacion: id },
+        data: {
+          resuelta: true,
+          fecha_resolucion: new Date(),
+          resuelto_por: userId,
           respuesta: responderDto.respuesta,
         },
-      },
+        include: {
+          tramite: {
+            select: {
+              id_tramite: true,
+              codigo: true,
+              asunto: true,
+              estado: true,
+            },
+          },
+          resolutor: {
+            select: {
+              nombres: true,
+              apellidos: true,
+              correo: true,
+            },
+          },
+        },
+      });
+
+      // 6.2. Registrar en historial
+      await tx.historialTramite.create({
+        data: {
+          id_tramite: observacion.tramite.id_tramite,
+          accion: 'OBSERVACION_RESUELTA',
+          detalle: `Observación resuelta: ${observacion.tipo} - Respuesta: ${responderDto.respuesta}`,
+          estado_anterior: estadoAnterior,
+          estado_nuevo: estadoAnterior, // Mantiene el estado
+          realizado_por: userId,
+          datos_adicionales: {
+            id_observacion: id,
+            tipo_observacion: observacion.tipo,
+            descripcion_observacion: observacion.descripcion,
+            respuesta: responderDto.respuesta,
+            incluye_reenvio: responderDto.incluye_reenvio || false,
+          },
+        },
+      });
+
+      // 6.3. Variable para el nuevo trámite (TIPADO CORRECTO)
+      let nuevoTramite: any = null;
+
+      // 6.4. Si incluye reenvío, crear nuevo trámite
+      if (responderDto.incluye_reenvio && responderDto.id_documento_corregido) {
+        // Verificar documento corregido
+        const documentoCorregido = await tx.documento.findUnique({
+          where: { id_documento: responderDto.id_documento_corregido },
+          include: { tipo: true },
+        });
+
+        if (!documentoCorregido) {
+          throw new NotFoundException(
+            `Documento corregido con ID ${responderDto.id_documento_corregido} no encontrado`,
+          );
+        }
+
+        // Calcular número de versión
+        const tramiteOriginalId =
+          observacion.tramite.id_tramite_original ||
+          observacion.tramite.id_tramite;
+
+        const reenviosAnteriores = await tx.tramite.count({
+          where: { id_tramite_original: tramiteOriginalId },
+        });
+
+        const numeroVersion = reenviosAnteriores + 2;
+
+        // Generar código único
+        const year = new Date().getFullYear();
+        const count = await tx.tramite.count();
+        const codigo = `TRAM-${year}-${String(count + 1).padStart(6, '0')}`;
+
+        // Crear nuevo trámite (reenvío)
+        nuevoTramite = await tx.tramite.create({
+          data: {
+            codigo,
+            id_documento: responderDto.id_documento_corregido,
+            id_remitente: userId,
+            id_area_remitente: observacion.tramite.remitente.area.id_area,
+            id_receptor: observacion.tramite.id_receptor,
+            asunto: responderDto.asunto_reenvio || observacion.tramite.asunto,
+            mensaje: `Documento corregido en respuesta a observación: ${observacion.descripcion}`,
+            estado: 'ENVIADO',
+            requiere_firma: documentoCorregido.tipo.requiere_firma,
+            requiere_respuesta: documentoCorregido.tipo.requiere_respuesta,
+            es_reenvio: true,
+            id_tramite_original: tramiteOriginalId,
+            motivo_reenvio: `Corrección por observación tipo ${observacion.tipo}: ${responderDto.respuesta}`,
+            numero_version: numeroVersion,
+          },
+          include: {
+            documento: { include: { tipo: true } },
+            remitente: {
+              select: {
+                id_usuario: true,
+                nombres: true,
+                apellidos: true,
+              },
+            },
+            receptor: {
+              select: {
+                id_usuario: true,
+                nombres: true,
+                apellidos: true,
+              },
+            },
+            tramiteOriginal: {
+              select: {
+                codigo: true,
+                asunto: true,
+              },
+            },
+          },
+        });
+
+        // Registrar creación del reenvío
+        await tx.historialTramite.create({
+          data: {
+            id_tramite: nuevoTramite.id_tramite,
+            accion: 'REENVIO_POR_OBSERVACION',
+            detalle: `Reenvío creado automáticamente al resolver observación ${id}`,
+            estado_nuevo: 'ENVIADO',
+            realizado_por: userId,
+            datos_adicionales: {
+              tramite_original: tramiteOriginalId,
+              numero_version: numeroVersion,
+              id_observacion_origen: id,
+            },
+          },
+        });
+      }
+
+      // Retornar ambos valores
+      return { observacionResuelta, nuevoTramite };
     });
 
-    // Crear notificación persistente en BD
+    // 7. Notificaciones
     await this.notificacionesService.notificarObservacionResuelta(
       observacion.tramite.id_receptor,
       observacion.tramite.id_tramite,
       `${observacion.tramite.remitente.nombres} ${observacion.tramite.remitente.apellidos}`,
     );
 
-    // Enviar notificación WebSocket al trabajador
+    // 8. Si se creó un reenvío, notificar también
+    if (resultado.nuevoTramite) {
+      await this.notificacionesService.notificarTramiteReenviado(
+        resultado.nuevoTramite.id_receptor,
+        resultado.nuevoTramite.id_tramite,
+        resultado.nuevoTramite.asunto,
+        resultado.nuevoTramite.numero_version,
+      );
+    }
+
+    // 9. WebSocket
     const notificacion = {
-      id_observacion: observacionResuelta.id_observacion,
+      id_observacion: resultado.observacionResuelta.id_observacion,
       tipo: observacion.tipo,
-      respuesta: observacionResuelta.respuesta,
-      fecha_resolucion: observacionResuelta.fecha_resolucion,
-      tramite: observacionResuelta.tramite,
-      resolutor: observacionResuelta.resolutor,
+      respuesta: resultado.observacionResuelta.respuesta,
+      fecha_resolucion: resultado.observacionResuelta.fecha_resolucion,
+      tramite: resultado.observacionResuelta.tramite,
+      resolutor: resultado.observacionResuelta.resolutor,
+      nuevo_tramite: resultado.nuevoTramite
+        ? {
+            id_tramite: resultado.nuevoTramite.id_tramite,
+            codigo: resultado.nuevoTramite.codigo,
+            asunto: resultado.nuevoTramite.asunto,
+            numero_version: resultado.nuevoTramite.numero_version,
+          }
+        : null,
     };
 
     this.notificacionesGateway.enviarNotificacionResolucion(
@@ -384,7 +516,12 @@ export class ObservacionesService {
       notificacion,
     );
 
-    return observacionResuelta;
+    // 10. Retornar respuesta estructurada
+    return {
+      observacion: resultado.observacionResuelta,
+      reenvio_creado: resultado.nuevoTramite !== null,
+      nuevo_tramite: resultado.nuevoTramite,
+    };
   }
 
   /**
