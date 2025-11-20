@@ -9,6 +9,7 @@ import { TramitesModule } from './modules/tramite/tramites.module';
 import { ObservacionesModule } from './modules/observacion/observaciones.module';
 import { NotificacionesModule } from './modules/notificaciones/notificaciones.module';
 import { TipoDocumentoModule } from './modules/document-type/tipo-documento.module';
+import { FirmaElectronicaModule } from './modules/firma-electronica/firma-electronica.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { TipoDocumentoModule } from './modules/document-type/tipo-documento.modu
     ObservacionesModule,
     NotificacionesModule,
     TipoDocumentoModule,
+    FirmaElectronicaModule,
   ],
   controllers: [],
   providers: [],

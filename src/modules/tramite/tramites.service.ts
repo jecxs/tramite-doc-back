@@ -311,9 +311,11 @@ export class TramitesService {
         receptor: {
           select: {
             id_usuario: true,
+            dni: true,
             nombres: true,
             apellidos: true,
             correo: true,
+            telefono: true,
           },
         },
         areaRemitente: true,
