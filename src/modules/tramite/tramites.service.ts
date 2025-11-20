@@ -828,6 +828,11 @@ export class TramitesService {
         ];
       } else if (userRoles.includes('TRAB')) {
         where.id_receptor = userId;
+        where.NOT = {
+          reenvios: {
+            some: {} // Excluir trámites que tienen reenvíos
+          }
+        };
       }
     }
 
