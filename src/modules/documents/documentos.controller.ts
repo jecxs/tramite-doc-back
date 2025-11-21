@@ -141,7 +141,7 @@ export class DocumentosController {
     return this.documentosService.remove(id, userId);
   }
   /**
-   * NUEVO: Servir contenido del documento directamente (proxy)
+   * Servir contenido del documento directamente (proxy)
    * GET /api/documentos/:id/content
    * Acceso: ADMIN, RESP, TRAB (según permisos del documento/trámite)
    */
