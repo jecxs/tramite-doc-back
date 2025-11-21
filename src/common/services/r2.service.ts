@@ -89,7 +89,6 @@ export class R2Service {
       const command = new GetObjectCommand({
         Bucket: this.bucketName,
         Key: key,
-
       });
 
       const response = await this.r2Client.send(command);

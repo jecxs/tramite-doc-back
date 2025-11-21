@@ -155,12 +155,28 @@ model Tramite {
   firma             FirmaElectronica?
   observaciones     Observacion[]
   notificaciones    Notificacion[]
+  respuesta         RespuestaTramite?
 
   @@index([id_receptor])
   @@index([id_remitente])
   @@index([estado])
   @@index([fecha_envio])
   @@map("tramite")
+}
+
+model RespuestaTramite {
+  id_respuesta    String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_tramite      String   @unique @db.Uuid
+  texto_respuesta String   @db.Text
+  esta_conforme   Boolean  @default(true)
+  fecha_respuesta DateTime @default(now()) @db.Timestamp()
+  ip_address      String?  @db.VarChar(45)
+  navegador       String?  @db.VarChar(100)
+  dispositivo     String?  @db.VarChar(100)
+
+  tramite Tramite @relation(fields: [id_tramite], references: [id_tramite], onDelete: Cascade)
+
+  @@map("respuesta_tramite")
 }
 
 model HistorialTramite {

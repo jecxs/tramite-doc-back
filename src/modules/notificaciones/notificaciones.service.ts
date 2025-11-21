@@ -412,4 +412,27 @@ export class NotificacionesService {
       })),
     };
   }
+  async notificarRespuestaRecibida(
+    idUsuario: string,
+    idTramite: string,
+    nombreReceptor: string,
+    asuntoTramite: string,
+    estaConforme: boolean,
+  ) {
+    const titulo = estaConforme
+      ? 'Respuesta de conformidad recibida'
+      : 'Respuesta con observaciones recibida';
+
+    const mensaje = estaConforme
+      ? `${nombreReceptor} confirmó su conformidad con "${asuntoTramite}"`
+      : `${nombreReceptor} respondió con observaciones a "${asuntoTramite}"`;
+
+    return this.create({
+      id_usuario: idUsuario,
+      id_tramite: idTramite,
+      tipo: 'RESPUESTA_RECIBIDA',
+      titulo,
+      mensaje,
+    });
+  }
 }

@@ -382,6 +382,7 @@ export class TramitesService {
           },
         },
         firma: true,
+        respuesta: true,
       },
     });
 
@@ -427,7 +428,7 @@ export class TramitesService {
       throw new BadRequestException('El trámite ya fue abierto anteriormente');
     }
 
-    // ✅ SOLUCIÓN: Usar SOLO include (sin mezclar con select)
+    // Usar SOLO include
     const tramiteActualizado = await this.prisma.tramite.update({
       where: { id_tramite: id },
       data: {
@@ -484,6 +485,7 @@ export class TramitesService {
           },
         },
         firma: true,
+        respuesta: true,
       },
     });
 
@@ -586,6 +588,7 @@ export class TramitesService {
           },
         },
         firma: true,
+        respuesta: true,
       },
     });
 
@@ -830,8 +833,8 @@ export class TramitesService {
         where.id_receptor = userId;
         where.NOT = {
           reenvios: {
-            some: {} // Excluir trámites que tienen reenvíos
-          }
+            some: {}, // Excluir trámites que tienen reenvíos
+          },
         };
       }
     }
