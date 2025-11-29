@@ -83,18 +83,25 @@ export class RespuestaTramiteService {
       throw new BadRequestException('Este trámite ya fue respondido');
     }
 
-    // 6. Extraer información del navegador
+    // 6. Validar que acepta conformidad
+    if (!createRespuestaDto.acepta_conformidad) {
+      throw new BadRequestException(
+        'Debe confirmar que está conforme con el documento para continuar',
+      );
+    }
+
+    // 7. Extraer información del navegador
     const navegador = this.extractBrowser(userAgent);
     const dispositivo = this.extractDevice(userAgent);
 
-    // 7. Crear la respuesta en una transacción
+    // 8. Crear la respuesta en una transacción
     const result = await this.prisma.$transaction(async (tx) => {
       // Crear registro de respuesta
       const respuesta = await tx.respuestaTramite.create({
         data: {
           id_tramite: idTramite,
-          texto_respuesta: createRespuestaDto.texto_respuesta,
-          esta_conforme: createRespuestaDto.esta_conforme ?? true,
+          texto_respuesta: 'Conforme', // Texto estándar fijo
+          esta_conforme: true, // Siempre true cuando se confirma
           ip_address: ipAddress,
           navegador,
           dispositivo,
@@ -135,7 +142,7 @@ export class RespuestaTramiteService {
         data: {
           id_tramite: idTramite,
           accion: 'RESPUESTA',
-          detalle: `Respuesta de conformidad registrada${createRespuestaDto.esta_conforme ? '' : ' (con observaciones)'}`,
+          detalle: 'Conformidad confirmada por el trabajador',
           estado_anterior: 'LEIDO',
           estado_nuevo: 'RESPONDIDO',
           realizado_por: userId,
@@ -143,7 +150,7 @@ export class RespuestaTramiteService {
           datos_adicionales: {
             navegador,
             dispositivo,
-            esta_conforme: respuesta.esta_conforme,
+            confirmacion_automatica: true,
           },
         },
       });
@@ -151,13 +158,13 @@ export class RespuestaTramiteService {
       return { respuesta, tramiteActualizado };
     });
 
-    // 8. Notificar al remitente sobre la respuesta recibida
+    // Notificar al remitente
     await this.notificacionesService.create({
       id_usuario: tramite.remitente.id_usuario,
       id_tramite: idTramite,
       tipo: 'RESPUESTA_RECIBIDA',
-      titulo: 'Respuesta de conformidad recibida',
-      mensaje: `${tramite.receptor.nombres} ${tramite.receptor.apellidos} ha respondido al documento "${tramite.asunto}"`,
+      titulo: 'Confirmación de conformidad recibida',
+      mensaje: `${tramite.receptor.nombres} ${tramite.receptor.apellidos} esta de acuerdo con "${tramite.asunto}"`,
     });
 
     return result;
