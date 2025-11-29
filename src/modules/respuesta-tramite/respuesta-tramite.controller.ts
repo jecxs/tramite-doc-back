@@ -98,5 +98,4 @@ export class RespuestaTramiteController {
 
     return this.respuestaTramiteService.obtenerEstadisticas(filtros);
   }
-
 }

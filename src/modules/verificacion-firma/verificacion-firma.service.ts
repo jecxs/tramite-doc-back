@@ -71,7 +71,9 @@ export class VerificacionFirmaService {
 
     // Verificar que el trámite requiere firma
     if (!tramite.requiere_firma) {
-      throw new BadRequestException('Este trámite no requiere firma electrónica');
+      throw new BadRequestException(
+        'Este trámite no requiere firma electrónica',
+      );
     }
 
     // Verificar que está en estado LEIDO
@@ -202,7 +204,9 @@ export class VerificacionFirmaService {
       // Si alcanzó el máximo de intentos, bloquear temporalmente
       if (intentosActualizados >= this.MAX_INTENTOS) {
         const bloqueadoHasta = new Date();
-        bloqueadoHasta.setMinutes(bloqueadoHasta.getMinutes() + this.BLOQUEO_MINUTOS);
+        bloqueadoHasta.setMinutes(
+          bloqueadoHasta.getMinutes() + this.BLOQUEO_MINUTOS,
+        );
 
         await this.prisma.codigoVerificacionFirma.update({
           where: { id_codigo: codigoRegistro.id_codigo },
@@ -270,19 +274,22 @@ export class VerificacionFirmaService {
    * Verificar si el usuario está bloqueado temporalmente
    */
   private async verificarBloqueoTemporal(userId: string): Promise<void> {
-    const codigoBloqueado = await this.prisma.codigoVerificacionFirma.findFirst({
-      where: {
-        id_usuario: userId,
-        bloqueado_hasta: {
-          gt: new Date(),
+    const codigoBloqueado = await this.prisma.codigoVerificacionFirma.findFirst(
+      {
+        where: {
+          id_usuario: userId,
+          bloqueado_hasta: {
+            gt: new Date(),
+          },
+        },
+        orderBy: {
+          bloqueado_hasta: 'desc',
         },
       },
-      orderBy: {
-        bloqueado_hasta: 'desc',
-      },
-    });
+    );
 
-    if (codigoBloqueado) {
+    if (codigoBloqueado && codigoBloqueado.bloqueado_hasta) {
+      // FIX: Verificar que no sea null
       const minutosRestantes = Math.ceil(
         (codigoBloqueado.bloqueado_hasta.getTime() - Date.now()) / (1000 * 60),
       );

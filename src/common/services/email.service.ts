@@ -1,23 +1,29 @@
+// src/common/services/email.service.ts
 import { Injectable, Logger } from '@nestjs/common';
-import * as SibApiV3Sdk from '@getbrevo/brevo';
+import {
+  TransactionalEmailsApi,
+  TransactionalEmailsApiApiKeys,
+  SendSmtpEmail,
+} from '@getbrevo/brevo';
 
 @Injectable()
 export class EmailService {
   private readonly logger = new Logger(EmailService.name);
-  private apiInstance: SibApiV3Sdk.TransactionalEmailsApi;
+  private apiInstance: TransactionalEmailsApi;
 
   constructor() {
     // Validar variables de entorno
     if (!process.env.BREVO_API_KEY) {
-      throw new Error('BREVO_API_KEY no está configurado en variables de entorno');
+      throw new Error(
+        'BREVO_API_KEY no está configurado en variables de entorno',
+      );
     }
 
-    // Configurar cliente de Brevo
-    const defaultClient = SibApiV3Sdk.ApiClient.instance;
-    const apiKey = defaultClient.authentications['api-key'];
-    apiKey.apiKey = process.env.BREVO_API_KEY;
-
-    this.apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
+    this.apiInstance = new TransactionalEmailsApi();
+    this.apiInstance.setApiKey(
+      TransactionalEmailsApiApiKeys.apiKey,
+      process.env.BREVO_API_KEY,
+    );
 
     this.logger.log('Servicio de Email (Brevo) inicializado correctamente');
   }
@@ -34,49 +40,58 @@ export class EmailService {
     minutosExpiracion: number = 5,
   ): Promise<void> {
     try {
-      const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
-
-      sendSmtpEmail.sender = {
-        email: process.env.BREVO_SENDER_EMAIL || 'noreply@sistema.edu.pe',
-        name: process.env.BREVO_SENDER_NAME || 'Sistema de Trámites',
+      const sendSmtpEmail: SendSmtpEmail = {
+        sender: {
+          email: process.env.BREVO_SENDER_EMAIL || 'noreply@sistema.edu.pe',
+          name: process.env.BREVO_SENDER_NAME || 'Sistema de Trámites',
+        },
+        to: [
+          {
+            email: emailDestino,
+            name: nombreUsuario,
+          },
+        ],
+        subject: `Código de verificación para firma: ${codigo}`,
+        htmlContent: this.generarPlantillaCodigoVerificacion(
+          nombreUsuario,
+          codigo,
+          tituloDocumento,
+          codigoTramite,
+          minutosExpiracion,
+        ),
+        textContent: `
+          Hola ${nombreUsuario},
+          
+          Has solicitado firmar el documento: ${tituloDocumento} (${codigoTramite})
+          
+          Tu código de verificación es: ${codigo}
+          
+          Este código expira en ${minutosExpiracion} minutos.
+          
+          Si no solicitaste esto, ignora este mensaje.
+        `,
       };
 
-      sendSmtpEmail.to = [
-        {
-          email: emailDestino,
-          name: nombreUsuario,
-        },
-      ];
+      //  Enviar email con la nueva API v3.0.1
+      const result = await this.apiInstance.sendTransacEmail(sendSmtpEmail);
 
-      sendSmtpEmail.subject = `Código de verificación para firma: ${codigo}`;
-
-      sendSmtpEmail.htmlContent = this.generarPlantillaCodigoVerificacion(
-        nombreUsuario,
-        codigo,
-        tituloDocumento,
-        codigoTramite,
-        minutosExpiracion,
+      this.logger.log(
+        `Email enviado exitosamente a ${emailDestino}. MessageId: ${result.body.messageId}`,
+      );
+    } catch (error) {
+      this.logger.error(
+        `Error al enviar email:`,
+        error instanceof Error ? error.stack : error,
       );
 
-      sendSmtpEmail.textContent = `
-        Hola ${nombreUsuario},
-        
-        Has solicitado firmar el documento: ${tituloDocumento} (${codigoTramite})
-        
-        Tu código de verificación es: ${codigo}
-        
-        Este código expira en ${minutosExpiracion} minutos.
-        
-        Si no solicitaste esto, ignora este mensaje.
-      `;
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : 'Error desconocido al enviar email';
 
-      // Enviar email
-      const response = await this.apiInstance.sendTransacEmail(sendSmtpEmail);
-
-      this.logger.log(`Email enviado exitosamente a ${emailDestino}. MessageId: ${response.messageId}`);
-    } catch (error) {
-      this.logger.error(`Error al enviar email: ${error.message}`, error.stack);
-      throw new Error(`Error al enviar código de verificación: ${error.message}`);
+      throw new Error(
+        `Error al enviar código de verificación: ${errorMessage}`,
+      );
     }
   }
 
@@ -108,7 +123,7 @@ export class EmailService {
                 <tr>
                   <td style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center;">
                     <h1 style="color: #ffffff; margin: 0; font-size: 24px;">
-                      🔐 Verificación de Firma Electrónica
+                       Verificación de Firma Electrónica
                     </h1>
                   </td>
                 </tr>
@@ -149,7 +164,7 @@ export class EmailService {
                     <!-- Advertencia de expiración -->
                     <div style="background-color: #fff3cd; border: 1px solid #ffc107; padding: 15px; margin: 20px 0; border-radius: 4px;">
                       <p style="margin: 0; color: #856404; font-size: 13px; text-align: center;">
-                        ⏰ <strong>Este código expira en ${minutosExpiracion} minutos</strong>
+                         <strong>Este código expira en ${minutosExpiracion} minutos</strong>
                       </p>
                     </div>
                     
@@ -163,7 +178,7 @@ export class EmailService {
                 <tr>
                   <td style="background-color: #f8f9fa; padding: 20px 30px; border-top: 1px solid #e9ecef;">
                     <p style="color: #999999; font-size: 12px; line-height: 1.6; margin: 0;">
-                      <strong>⚠️ Seguridad:</strong> Si no solicitaste esta verificación, ignora este mensaje. 
+                      <strong> Seguridad:</strong> Si no solicitaste esta verificación, ignora este mensaje. 
                       Nunca compartas este código con nadie.
                     </p>
                     <p style="color: #999999; font-size: 12px; line-height: 1.6; margin: 10px 0 0 0; text-align: center;">
@@ -190,43 +205,45 @@ export class EmailService {
     minutosBloqueo: number,
   ): Promise<void> {
     try {
-      const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
-
-      sendSmtpEmail.sender = {
-        email: process.env.BREVO_SENDER_EMAIL || 'noreply@sistema.edu.pe',
-        name: process.env.BREVO_SENDER_NAME || 'Sistema de Trámites',
+      const sendSmtpEmail: SendSmtpEmail = {
+        sender: {
+          email: process.env.BREVO_SENDER_EMAIL || 'noreply@sistema.edu.pe',
+          name: process.env.BREVO_SENDER_NAME || 'Sistema de Trámites',
+        },
+        to: [
+          {
+            email: emailDestino,
+            name: nombreUsuario,
+          },
+        ],
+        subject: '🔒 Cuenta bloqueada temporalmente',
+        htmlContent: `
+          <!DOCTYPE html>
+          <html>
+          <body style="font-family: Arial, sans-serif; padding: 20px; background-color: #f4f4f4;">
+            <div style="max-width: 600px; margin: 0 auto; background-color: white; padding: 30px; border-radius: 8px;">
+              <h2 style="color: #dc3545;">🔒 Cuenta Bloqueada Temporalmente</h2>
+              <p>Hola ${nombreUsuario},</p>
+              <p>Tu cuenta ha sido bloqueada temporalmente por <strong>${minutosBloqueo} minutos</strong> debido a múltiples intentos fallidos de verificación de código.</p>
+              <p>Podrás intentar nuevamente después de este período.</p>
+              <p style="color: #666; font-size: 14px; margin-top: 30px;">
+                Si no realizaste estos intentos, por favor contacta al administrador del sistema.
+              </p>
+            </div>
+          </body>
+          </html>
+        `,
       };
 
-      sendSmtpEmail.to = [
-        {
-          email: emailDestino,
-          name: nombreUsuario,
-        },
-      ];
-
-      sendSmtpEmail.subject = '🔒 Cuenta bloqueada temporalmente';
-
-      sendSmtpEmail.htmlContent = `
-        <!DOCTYPE html>
-        <html>
-        <body style="font-family: Arial, sans-serif; padding: 20px; background-color: #f4f4f4;">
-          <div style="max-width: 600px; margin: 0 auto; background-color: white; padding: 30px; border-radius: 8px;">
-            <h2 style="color: #dc3545;">🔒 Cuenta Bloqueada Temporalmente</h2>
-            <p>Hola ${nombreUsuario},</p>
-            <p>Tu cuenta ha sido bloqueada temporalmente por <strong>${minutosBloqueo} minutos</strong> debido a múltiples intentos fallidos de verificación de código.</p>
-            <p>Podrás intentar nuevamente después de este período.</p>
-            <p style="color: #666; font-size: 14px; margin-top: 30px;">
-              Si no realizaste estos intentos, por favor contacta al administrador del sistema.
-            </p>
-          </div>
-        </body>
-        </html>
-      `;
-
-      await this.apiInstance.sendTransacEmail(sendSmtpEmail);
-      this.logger.log(`Notificación de bloqueo enviada a ${emailDestino}`);
+      const result = await this.apiInstance.sendTransacEmail(sendSmtpEmail);
+      this.logger.log(
+        `Notificación de bloqueo enviada a ${emailDestino}. MessageId: ${result.body.messageId}`,
+      );
     } catch (error) {
-      this.logger.error(`Error al enviar notificación de bloqueo: ${error.message}`);
+      this.logger.error(
+        `Error al enviar notificación de bloqueo:`,
+        error instanceof Error ? error.stack : error,
+      );
     }
   }
 }
