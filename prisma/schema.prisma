@@ -49,20 +49,44 @@ model Usuario {
   fecha_creacion DateTime @default(now()) @db.Timestamp()
 
   // Relaciones
-  area                   Area               @relation("AreaUsuarios", fields: [id_area], references: [id_area])
-  roles                  UsuarioRol[]
-  documentosCreados      Documento[]        @relation("DocumentoCreador")
-  tramitesEnviados       Tramite[]          @relation("TramiteRemitente")
-  tramitesRecibidos      Tramite[]          @relation("TramiteReceptor")
-  tramitesAnulados       Tramite[]          @relation("TramiteAnuladoPor")
-  historialTramites      HistorialTramite[]
-  observacionesCreadas   Observacion[]      @relation("ObservacionCreador")
-  observacionesResueltas Observacion[]      @relation("ObservacionResolutor")
-  notificaciones         Notificacion[]
+  area                     Area                      @relation("AreaUsuarios", fields: [id_area], references: [id_area])
+  roles                    UsuarioRol[]
+  documentosCreados        Documento[]               @relation("DocumentoCreador")
+  tramitesEnviados         Tramite[]                 @relation("TramiteRemitente")
+  tramitesRecibidos        Tramite[]                 @relation("TramiteReceptor")
+  tramitesAnulados         Tramite[]                 @relation("TramiteAnuladoPor")
+  historialTramites        HistorialTramite[]
+  observacionesCreadas     Observacion[]             @relation("ObservacionCreador")
+  observacionesResueltas   Observacion[]             @relation("ObservacionResolutor")
+  notificaciones           Notificacion[]
+  codigosVerificacionFirma CodigoVerificacionFirma[] // NUEVO
 
   @@index([id_area])
   @@index([correo])
   @@map("usuario")
+}
+
+model CodigoVerificacionFirma {
+  id_codigo          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_tramite         String    @db.Uuid
+  id_usuario         String    @db.Uuid
+  codigo             String    @db.VarChar(6)
+  email_destinatario String    @db.VarChar(150)
+  expira_en          DateTime  @db.Timestamp()
+  usado              Boolean   @default(false)
+  fecha_usado        DateTime? @db.Timestamp()
+  intentos_fallidos  Int       @default(0)
+  bloqueado_hasta    DateTime? @db.Timestamp()
+  ip_solicitud       String?   @db.VarChar(45)
+  user_agent         String?   @db.VarChar(255)
+  fecha_creacion     DateTime  @default(now()) @db.Timestamp()
+
+  tramite Tramite @relation(fields: [id_tramite], references: [id_tramite], onDelete: Cascade)
+  usuario Usuario @relation(fields: [id_usuario], references: [id_usuario], onDelete: Cascade)
+
+  @@index([id_tramite, usado, expira_en])
+  @@index([id_usuario, bloqueado_hasta])
+  @@map("codigos_verificacion_firma")
 }
 
 model UsuarioRol {
@@ -144,18 +168,19 @@ model Tramite {
   motivo_anulacion String? @db.Text
 
   // Relaciones
-  documento         Documento          @relation(fields: [id_documento], references: [id_documento])
-  remitente         Usuario            @relation("TramiteRemitente", fields: [id_remitente], references: [id_usuario])
-  areaRemitente     Area               @relation("AreaRemitente", fields: [id_area_remitente], references: [id_area])
-  receptor          Usuario            @relation("TramiteReceptor", fields: [id_receptor], references: [id_usuario])
-  tramiteOriginal   Tramite?           @relation("ReenvioTramite", fields: [id_tramite_original], references: [id_tramite])
-  reenvios          Tramite[]          @relation("ReenvioTramite")
-  anuladoPorUsuario Usuario?           @relation("TramiteAnuladoPor", fields: [anulado_por], references: [id_usuario])
-  historial         HistorialTramite[]
-  firma             FirmaElectronica?
-  observaciones     Observacion[]
-  notificaciones    Notificacion[]
-  respuesta         RespuestaTramite?
+  documento               Documento                 @relation(fields: [id_documento], references: [id_documento])
+  remitente               Usuario                   @relation("TramiteRemitente", fields: [id_remitente], references: [id_usuario])
+  areaRemitente           Area                      @relation("AreaRemitente", fields: [id_area_remitente], references: [id_area])
+  receptor                Usuario                   @relation("TramiteReceptor", fields: [id_receptor], references: [id_usuario])
+  tramiteOriginal         Tramite?                  @relation("ReenvioTramite", fields: [id_tramite_original], references: [id_tramite])
+  reenvios                Tramite[]                 @relation("ReenvioTramite")
+  anuladoPorUsuario       Usuario?                  @relation("TramiteAnuladoPor", fields: [anulado_por], references: [id_usuario])
+  historial               HistorialTramite[]
+  firma                   FirmaElectronica?
+  observaciones           Observacion[]
+  notificaciones          Notificacion[]
+  respuesta               RespuestaTramite?
+  CodigoVerificacionFirma CodigoVerificacionFirma[]
 
   @@index([id_receptor])
   @@index([id_remitente])

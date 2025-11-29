@@ -11,6 +11,8 @@ import {
 import { Request } from 'express';
 import { FirmaElectronicaService } from './firma-electronica.service';
 import { CreateFirmaElectronicaDto } from './dto/create-firma-electronica.dto';
+import { VerificarCodigoDto } from '../verificacion-firma/dto/verificar-codigo.dto';
+import { VerificacionFirmaService } from '../verificacion-firma/verificacion-firma.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -21,18 +23,18 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 export class FirmaElectronicaController {
   constructor(
     private readonly firmaElectronicaService: FirmaElectronicaService,
+    private readonly verificacionFirmaService: VerificacionFirmaService,
   ) {}
 
   /**
-   * Firmar un trámite electrónicamente
-   * POST /api/firma-electronica/tramite/:id/firmar
+   * PASO 1: Solicitar código de verificación
+   * POST /api/firma-electronica/tramite/:id/solicitar-codigo
    * Acceso: TRAB (solo el receptor del trámite)
    */
-  @Post('tramite/:id/firmar')
+  @Post('tramite/:id/solicitar-codigo')
   @Roles('TRAB')
-  firmar(
+  async solicitarCodigoVerificacion(
     @Param('id', ParseUUIDPipe) idTramite: string,
-    @Body() createFirmaDto: CreateFirmaElectronicaDto,
     @CurrentUser('id_usuario') userId: string,
     @Req() request: Request,
   ) {
@@ -46,9 +48,53 @@ export class FirmaElectronicaController {
     // Extraer User-Agent
     const userAgent = request.headers['user-agent'] || 'User-Agent desconocido';
 
+    return this.verificacionFirmaService.generarYEnviarCodigo(
+      idTramite,
+      userId,
+      ipAddress,
+      userAgent,
+    );
+  }
+
+  /**
+   * PASO 2: Verificar código y firmar documento
+   * POST /api/firma-electronica/tramite/:id/verificar-y-firmar
+   * Acceso: TRAB (solo el receptor del trámite)
+   */
+  @Post('tramite/:id/verificar-y-firmar')
+  @Roles('TRAB')
+  async verificarYFirmar(
+    @Param('id', ParseUUIDPipe) idTramite: string,
+    @Body()
+    body: {
+      codigo: string;
+      acepta_terminos: boolean;
+    },
+    @CurrentUser('id_usuario') userId: string,
+    @Req() request: Request,
+  ) {
+    // Extraer IP del cliente
+    const ipAddress =
+      (request.headers['x-forwarded-for'] as string)?.split(',')[0] ||
+      request.ip ||
+      request.socket.remoteAddress ||
+      'IP desconocida';
+
+    // Extraer User-Agent
+    const userAgent = request.headers['user-agent'] || 'User-Agent desconocido';
+
+    // 1. Validar código de verificación
+    await this.verificacionFirmaService.validarCodigo(
+      idTramite,
+      userId,
+      body.codigo,
+      ipAddress,
+    );
+
+    // 2. Si el código es válido, proceder con la firma
     return this.firmaElectronicaService.firmar(
       idTramite,
-      createFirmaDto,
+      { acepta_terminos: body.acepta_terminos },
       userId,
       ipAddress,
       userAgent,
@@ -94,5 +140,16 @@ export class FirmaElectronicaController {
   @Roles('ADMIN')
   getStatistics() {
     return this.firmaElectronicaService.getStatistics();
+  }
+
+  /**
+   * Obtener estadísticas de códigos de verificación
+   * GET /api/firma-electronica/verificacion/statistics
+   * Acceso: Solo ADMIN
+   */
+  @Get('verificacion/statistics')
+  @Roles('ADMIN')
+  getVerificacionStatistics() {
+    return this.verificacionFirmaService.getEstadisticas();
   }
 }

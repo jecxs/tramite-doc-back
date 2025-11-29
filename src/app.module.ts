@@ -11,6 +11,7 @@ import { NotificacionesModule } from './modules/notificaciones/notificaciones.mo
 import { TipoDocumentoModule } from './modules/document-type/tipo-documento.module';
 import { FirmaElectronicaModule } from './modules/firma-electronica/firma-electronica.module';
 import { RespuestaTramiteModule } from './modules/respuesta-tramite/respuesta-tramite.module';
+import { VerificacionFirmaModule } from './modules/verificacion-firma/verificacion-firma.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { RespuestaTramiteModule } from './modules/respuesta-tramite/respuesta-tr
     TipoDocumentoModule,
     FirmaElectronicaModule,
     RespuestaTramiteModule,
+    VerificacionFirmaModule,
   ],
   controllers: [],
   providers: [],
