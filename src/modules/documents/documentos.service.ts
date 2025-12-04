@@ -7,6 +7,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { R2Service } from '../../common/services/r2.service';
 import { UploadDocumentoDto } from './dto/upload-documento.dto';
 import { FilterDocumentoDto } from './dto/filter-documento.dto';
+import { config } from 'src/config';
 
 @Injectable()
 export class DocumentosService {
@@ -48,7 +49,7 @@ export class DocumentosService {
     }
 
     // Validar tamaño del archivo (máximo 10MB por defecto)
-    const maxSizeMB = parseInt(process.env.MAX_FILE_SIZE_MB || '10');
+    const maxSizeMB = parseInt(config.MAX_FILE_SIZE_MB);
     const maxSizeBytes = maxSizeMB * 1024 * 1024;
 
     if (file.size > maxSizeBytes) {
@@ -343,7 +344,7 @@ export class DocumentosService {
    * Eliminar un documento (solo desarrollo/testing)
    */
   async remove(id: string, userId: string) {
-    if (process.env.NODE_ENV === 'production') {
+    if (config.NODE_ENV === 'production') {
       throw new BadRequestException(
         'No se pueden eliminar documentos en producción',
       );

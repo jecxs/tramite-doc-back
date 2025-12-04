@@ -5,6 +5,7 @@ import {
   TransactionalEmailsApiApiKeys,
   SendSmtpEmail,
 } from '@getbrevo/brevo';
+import { config } from 'src/config';
 
 @Injectable()
 export class EmailService {
@@ -13,7 +14,7 @@ export class EmailService {
 
   constructor() {
     // Validar variables de entorno
-    if (!process.env.BREVO_API_KEY) {
+    if (!config.BREVO_API_KEY) {
       throw new Error(
         'BREVO_API_KEY no está configurado en variables de entorno',
       );
@@ -22,7 +23,7 @@ export class EmailService {
     this.apiInstance = new TransactionalEmailsApi();
     this.apiInstance.setApiKey(
       TransactionalEmailsApiApiKeys.apiKey,
-      process.env.BREVO_API_KEY,
+      config.BREVO_API_KEY,
     );
 
     this.logger.log('Servicio de Email (Brevo) inicializado correctamente');
@@ -42,8 +43,8 @@ export class EmailService {
     try {
       const sendSmtpEmail: SendSmtpEmail = {
         sender: {
-          email: process.env.BREVO_SENDER_EMAIL || 'noreply@sistema.edu.pe',
-          name: process.env.BREVO_SENDER_NAME || 'Sistema de Trámites',
+          email: config.BREVO_SENDER_EMAIL,
+          name: config.BREVO_SENDER_NAME,
         },
         to: [
           {
@@ -61,13 +62,13 @@ export class EmailService {
         ),
         textContent: `
           Hola ${nombreUsuario},
-          
+
           Has solicitado firmar el documento: ${tituloDocumento} (${codigoTramite})
-          
+
           Tu código de verificación es: ${codigo}
-          
+
           Este código expira en ${minutosExpiracion} minutos.
-          
+
           Si no solicitaste esto, ignora este mensaje.
         `,
       };
@@ -118,7 +119,7 @@ export class EmailService {
           <tr>
             <td align="center">
               <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                
+
                 <!-- Header -->
                 <tr>
                   <td style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center;">
@@ -127,18 +128,18 @@ export class EmailService {
                     </h1>
                   </td>
                 </tr>
-                
+
                 <!-- Contenido -->
                 <tr>
                   <td style="padding: 40px 30px;">
                     <p style="color: #333333; font-size: 16px; line-height: 1.6; margin-bottom: 20px;">
                       Hola <strong>${nombreUsuario}</strong>,
                     </p>
-                    
+
                     <p style="color: #555555; font-size: 14px; line-height: 1.6; margin-bottom: 10px;">
                       Has solicitado firmar electrónicamente el siguiente documento:
                     </p>
-                    
+
                     <div style="background-color: #f8f9fa; border-left: 4px solid #667eea; padding: 15px; margin: 20px 0; border-radius: 4px;">
                       <p style="margin: 0; color: #333333; font-size: 14px;">
                         <strong>Documento:</strong> ${tituloDocumento}
@@ -147,11 +148,11 @@ export class EmailService {
                         <strong>Código de trámite:</strong> ${codigoTramite}
                       </p>
                     </div>
-                    
+
                     <p style="color: #555555; font-size: 14px; line-height: 1.6; margin: 30px 0 20px 0;">
                       Tu código de verificación es:
                     </p>
-                    
+
                     <!-- Código de Verificación -->
                     <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 25px; margin: 20px 0; border-radius: 8px; text-align: center;">
                       <div style="background-color: #ffffff; padding: 20px; border-radius: 8px; display: inline-block;">
@@ -160,25 +161,25 @@ export class EmailService {
                         </span>
                       </div>
                     </div>
-                    
+
                     <!-- Advertencia de expiración -->
                     <div style="background-color: #fff3cd; border: 1px solid #ffc107; padding: 15px; margin: 20px 0; border-radius: 4px;">
                       <p style="margin: 0; color: #856404; font-size: 13px; text-align: center;">
                          <strong>Este código expira en ${minutosExpiracion} minutos</strong>
                       </p>
                     </div>
-                    
+
                     <p style="color: #555555; font-size: 14px; line-height: 1.6; margin-top: 30px;">
                       Ingresa este código en el sistema para completar la firma electrónica del documento.
                     </p>
                   </td>
                 </tr>
-                
+
                 <!-- Footer -->
                 <tr>
                   <td style="background-color: #f8f9fa; padding: 20px 30px; border-top: 1px solid #e9ecef;">
                     <p style="color: #999999; font-size: 12px; line-height: 1.6; margin: 0;">
-                      <strong> Seguridad:</strong> Si no solicitaste esta verificación, ignora este mensaje. 
+                      <strong> Seguridad:</strong> Si no solicitaste esta verificación, ignora este mensaje.
                       Nunca compartas este código con nadie.
                     </p>
                     <p style="color: #999999; font-size: 12px; line-height: 1.6; margin: 10px 0 0 0; text-align: center;">
@@ -186,7 +187,7 @@ export class EmailService {
                     </p>
                   </td>
                 </tr>
-                
+
               </table>
             </td>
           </tr>
@@ -207,8 +208,8 @@ export class EmailService {
     try {
       const sendSmtpEmail: SendSmtpEmail = {
         sender: {
-          email: process.env.BREVO_SENDER_EMAIL || 'noreply@sistema.edu.pe',
-          name: process.env.BREVO_SENDER_NAME || 'Sistema de Trámites',
+          email: config.BREVO_SENDER_EMAIL,
+          name: config.BREVO_SENDER_NAME,
         },
         to: [
           {

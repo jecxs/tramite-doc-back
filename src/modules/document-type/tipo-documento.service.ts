@@ -7,6 +7,7 @@ import {
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateTipoDocumentoDto } from './dto/create-tipo-documento.dto';
 import { UpdateTipoDocumentoDto } from './dto/update-tipo-documento.dto';
+import { config } from 'src/config';
 
 @Injectable()
 export class TipoDocumentoService {
@@ -221,7 +222,7 @@ export class TipoDocumentoService {
    * En producción, mejor desactivar o no permitir eliminar
    */
   async remove(id: string) {
-    if (process.env.NODE_ENV === 'production') {
+    if (config.NODE_ENV === 'production') {
       throw new BadRequestException(
         'No se pueden eliminar tipos de documento en producción',
       );

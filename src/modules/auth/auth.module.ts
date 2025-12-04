@@ -4,16 +4,15 @@ import { PassportModule } from '@nestjs/passport';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { JwtStrategy } from './strategies/jwt.strategy';
+import { config } from 'src/config';
 
 @Module({
   imports: [
     PassportModule,
     JwtModule.register({
-      secret:
-        process.env.JWT_SECRET ||
-        'tu-secreto-super-seguro-cambiar-en-produccion',
+      secret: config.JWT_SECRET,
       signOptions: {
-        expiresIn: '1h', // Token válido por 1 hora
+        expiresIn: '1h',
       },
     }),
   ],

@@ -1,5 +1,6 @@
 import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
+import { config } from 'src/config';
 
 @Injectable()
 export class PrismaService
@@ -18,7 +19,7 @@ export class PrismaService
 
   // Método helper para limpiar la base de datos (útil para testing)
   async cleanDatabase() {
-    if (process.env.NODE_ENV === 'production') {
+    if (config.NODE_ENV === 'production') {
       throw new Error('No se puede limpiar la base de datos en producción');
     }
 
