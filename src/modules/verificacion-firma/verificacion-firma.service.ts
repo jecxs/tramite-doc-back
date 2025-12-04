@@ -7,18 +7,19 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { EmailService } from '../../common/services/email.service';
+import { config } from 'src/config';
 
 @Injectable()
 export class VerificacionFirmaService {
   private readonly logger = new Logger(VerificacionFirmaService.name);
   private readonly CODIGO_EXPIRACION_MINUTOS = parseInt(
-    process.env.CODIGO_VERIFICACION_EXPIRACION_MINUTOS || '5',
+    config.CODIGO_VERIFICACION_EXPIRACION_MINUTOS,
   );
   private readonly MAX_INTENTOS = parseInt(
-    process.env.CODIGO_VERIFICACION_MAX_INTENTOS || '5',
+    config.CODIGO_VERIFICACION_MAX_INTENTOS,
   );
   private readonly BLOQUEO_MINUTOS = parseInt(
-    process.env.CODIGO_VERIFICACION_BLOQUEO_MINUTOS || '15',
+    config.CODIGO_VERIFICACION_BLOQUEO_MINUTOS,
   );
 
   constructor(

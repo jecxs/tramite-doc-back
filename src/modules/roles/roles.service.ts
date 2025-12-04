@@ -7,6 +7,7 @@ import {
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateRolDto } from './dto/create-rol.dto';
 import { UpdateRolDto } from './dto/update-rol.dto';
+import { config } from 'src/config';
 
 @Injectable()
 export class RolesService {
@@ -247,7 +248,7 @@ export class RolesService {
    * Eliminar permanentemente un rol (solo en desarrollo/testing)
    */
   async remove(id: string) {
-    if (process.env.NODE_ENV === 'production') {
+    if (config.NODE_ENV === 'production') {
       throw new BadRequestException(
         'No se pueden eliminar roles permanentemente en producción. Use la desactivación.',
       );

@@ -9,6 +9,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { FilterUserDto } from './dto/filter-user.dto';
+import { config } from 'src/config';
 
 @Injectable()
 export class UsersService {
@@ -518,7 +519,7 @@ export class UsersService {
    * Eliminar permanentemente un usuario (solo en desarrollo/testing)
    */
   async remove(id: string) {
-    if (process.env.NODE_ENV === 'production') {
+    if (config.NODE_ENV === 'production') {
       throw new BadRequestException(
         'No se pueden eliminar usuarios permanentemente en producción. Use la desactivación.',
       );

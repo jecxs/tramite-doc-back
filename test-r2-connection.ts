@@ -1,17 +1,14 @@
-// test-r2-connection.ts
-import * as dotenv from 'dotenv';
-dotenv.config();
-
 import { S3Client, HeadBucketCommand } from '@aws-sdk/client-s3';
+import { config } from 'src/config';
 
 // Obtener variables de entorno (asegúrate de que R2_BUCKET_NAME esté definido)
-const R2_ENDPOINT = process.env.R2_ENDPOINT;
-const R2_ACCESS_KEY_ID = process.env.R2_ACCESS_KEY_ID;
-const R2_SECRET_ACCESS_KEY = process.env.R2_SECRET_ACCESS_KEY;
-const R2_BUCKET_NAME = process.env.R2_BUCKET_NAME; // ¡Nueva variable!
+const R2_ENDPOINT = config.R2_ENDPOINT;
+const R2_ACCESS_KEY_ID = config.R2_ACCESS_KEY_ID;
+const R2_SECRET_ACCESS_KEY = config.R2_SECRET_ACCESS_KEY;
+const R2_BUCKET_NAME = config.R2_BUCKET_NAME;
 
 if (!R2_BUCKET_NAME) {
-  console.error("❌ ERROR: La variable R2_BUCKET_NAME no está definida.");
+  console.error('❌ ERROR: La variable R2_BUCKET_NAME no está definida.');
   process.exit(1);
 }
 
@@ -26,7 +23,7 @@ const r2Client = new S3Client({
 
 async function testConnection() {
   try {
-    // 💡 Usamos HeadBucketCommand para verificar si el bucket existe y es accesible
+    // Usamos HeadBucketCommand para verificar si el bucket existe y es accesible
     const command = new HeadBucketCommand({
       Bucket: R2_BUCKET_NAME,
     });
@@ -36,7 +33,6 @@ async function testConnection() {
 
     console.log(`✅ Conexión exitosa a R2.`);
     console.log(`Bucket verificado: **${R2_BUCKET_NAME}**.`);
-
   } catch (error) {
     console.error('❌ Error al conectar con R2:', error);
     // Si la respuesta es 404 (Not Found), el bucket no existe

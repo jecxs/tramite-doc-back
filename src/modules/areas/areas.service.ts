@@ -7,6 +7,7 @@ import {
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateAreaDto } from './dto/create-area.dto';
 import { UpdateAreaDto } from './dto/update-area.dto';
+import { config } from 'src/config';
 
 @Injectable()
 export class AreasService {
@@ -365,7 +366,7 @@ export class AreasService {
    * Eliminar permanentemente un área (solo en desarrollo/testing)
    */
   async remove(id: string) {
-    if (process.env.NODE_ENV === 'production') {
+    if (config.NODE_ENV === 'production') {
       throw new BadRequestException(
         'No se pueden eliminar áreas permanentemente en producción. Use la desactivación.',
       );

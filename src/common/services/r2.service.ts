@@ -8,6 +8,7 @@ import {
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { Readable } from 'stream';
+import { config } from 'src/config';
 
 @Injectable()
 export class R2Service {
@@ -18,25 +19,25 @@ export class R2Service {
   constructor() {
     // Validar que las variables de entorno estén configuradas
     if (
-      !process.env.R2_ACCOUNT_ID ||
-      !process.env.R2_ACCESS_KEY_ID ||
-      !process.env.R2_SECRET_ACCESS_KEY ||
-      !process.env.R2_BUCKET_NAME
+      !config.R2_ACCOUNT_ID ||
+      !config.R2_ACCESS_KEY_ID ||
+      !config.R2_SECRET_ACCESS_KEY ||
+      !config.R2_BUCKET_NAME
     ) {
       throw new Error(
         'Las variables de entorno de R2 no están configuradas correctamente',
       );
     }
 
-    this.bucketName = process.env.R2_BUCKET_NAME;
+    this.bucketName = config.R2_BUCKET_NAME;
 
     // Configurar cliente de R2 (compatible con S3)
     this.r2Client = new S3Client({
       region: 'auto',
-      endpoint: process.env.R2_ENDPOINT,
+      endpoint: config.R2_ENDPOINT,
       credentials: {
-        accessKeyId: process.env.R2_ACCESS_KEY_ID,
-        secretAccessKey: process.env.R2_SECRET_ACCESS_KEY,
+        accessKeyId: config.R2_ACCESS_KEY_ID,
+        secretAccessKey: config.R2_SECRET_ACCESS_KEY,
       },
     });
 
