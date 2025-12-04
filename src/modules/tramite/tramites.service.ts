@@ -172,6 +172,16 @@ export class TramitesService {
     userId: string,
     userRoles: string[],
   ) {
+    // ============================================
+    // CONFIGURACIÓN DE PAGINACIÓN
+    // ============================================
+    const pagina = filterDto.pagina || 1;
+    const limite = Math.min(filterDto.limite || 20, 100); // Max 100 por página
+    const skip = (pagina - 1) * limite;
+
+    // ============================================
+    // CONSTRUCCIÓN DE FILTROS BASE (PERMISOS)
+    // ============================================
     const where: any = {};
 
     // Aplicar filtros de permisos según rol
@@ -192,7 +202,11 @@ export class TramitesService {
       where.id_receptor = userId;
     }
 
-    // Aplicar filtros adicionales del DTO
+    // ============================================
+    // APLICAR FILTROS ADICIONALES DEL DTO
+    // ============================================
+
+    // Filtros de usuarios y áreas
     if (filterDto.id_remitente) {
       where.id_remitente = filterDto.id_remitente;
     }
@@ -205,6 +219,7 @@ export class TramitesService {
       where.id_area_remitente = filterDto.id_area_remitente;
     }
 
+    // Filtros de estado y tipo
     if (filterDto.estado) {
       where.estado = filterDto.estado;
     }
@@ -221,6 +236,102 @@ export class TramitesService {
       where.es_reenvio = filterDto.es_reenvio;
     }
 
+    // ============================================
+    // NUEVO: FILTRO POR TIPO DE DOCUMENTO
+    // ============================================
+    if (filterDto.id_tipo_documento) {
+      where.documento = {
+        id_tipo: filterDto.id_tipo_documento,
+      };
+    }
+
+    // ============================================
+    // NUEVO: FILTROS POR RANGO DE FECHAS
+    // ============================================
+
+    // Fecha de envío
+    if (filterDto.fecha_envio_desde || filterDto.fecha_envio_hasta) {
+      where.fecha_envio = {};
+
+      if (filterDto.fecha_envio_desde) {
+        where.fecha_envio.gte = new Date(filterDto.fecha_envio_desde);
+      }
+
+      if (filterDto.fecha_envio_hasta) {
+        // Agregar 23:59:59 para incluir todo el día
+        const fechaHasta = new Date(filterDto.fecha_envio_hasta);
+        fechaHasta.setHours(23, 59, 59, 999);
+        where.fecha_envio.lte = fechaHasta;
+      }
+    }
+
+    // Fecha de lectura
+    if (filterDto.fecha_leido_desde || filterDto.fecha_leido_hasta) {
+      where.fecha_leido = {};
+
+      if (filterDto.fecha_leido_desde) {
+        where.fecha_leido.gte = new Date(filterDto.fecha_leido_desde);
+      }
+
+      if (filterDto.fecha_leido_hasta) {
+        const fechaHasta = new Date(filterDto.fecha_leido_hasta);
+        fechaHasta.setHours(23, 59, 59, 999);
+        where.fecha_leido.lte = fechaHasta;
+      }
+    }
+
+    // Fecha de firma
+    if (filterDto.fecha_firmado_desde || filterDto.fecha_firmado_hasta) {
+      where.fecha_firmado = {};
+
+      if (filterDto.fecha_firmado_desde) {
+        where.fecha_firmado.gte = new Date(filterDto.fecha_firmado_desde);
+      }
+
+      if (filterDto.fecha_firmado_hasta) {
+        const fechaHasta = new Date(filterDto.fecha_firmado_hasta);
+        fechaHasta.setHours(23, 59, 59, 999);
+        where.fecha_firmado.lte = fechaHasta;
+      }
+    }
+
+    // ============================================
+    // NUEVO: FILTROS ADICIONALES
+    // ============================================
+
+    // Filtrar trámites con/sin observaciones
+    if (filterDto.tiene_observaciones !== undefined) {
+      if (filterDto.tiene_observaciones) {
+        where.observaciones = {
+          some: {}, // Al menos una observación
+        };
+      } else {
+        where.observaciones = {
+          none: {}, // Sin observaciones
+        };
+      }
+    }
+
+    // Filtrar trámites con observaciones pendientes
+    if (filterDto.observaciones_pendientes) {
+      where.observaciones = {
+        some: {
+          resuelta: false, // Observaciones sin resolver
+        },
+      };
+    }
+
+    // Filtrar trámites con respuesta de conformidad
+    if (filterDto.con_respuesta !== undefined) {
+      if (filterDto.con_respuesta) {
+        where.respuesta = {
+          isNot: null, // Tiene respuesta
+        };
+      } else {
+        where.respuesta = null // No tiene respuesta
+      }
+    }
+
     // Búsqueda por texto
     if (filterDto.search) {
       where.OR = [
@@ -229,56 +340,99 @@ export class TramitesService {
       ];
     }
 
-    const tramites = await this.prisma.tramite.findMany({
-      where,
-      include: {
-        documento: {
-          include: {
-            tipo: true,
-          },
-        },
-        remitente: {
-          select: {
-            id_usuario: true,
-            nombres: true,
-            apellidos: true,
-            correo: true,
-          },
-        },
-        receptor: {
-          select: {
-            id_usuario: true,
-            nombres: true,
-            apellidos: true,
-            correo: true,
-          },
-        },
-        areaRemitente: true,
-        tramiteOriginal: {
-          select: {
-            id_tramite: true,
-            codigo: true,
-            asunto: true,
-          },
-        },
-        _count: {
-          select: {
-            observaciones: true,
-            reenvios: true,
-          },
-        },
-      },
-      orderBy: {
-        fecha_envio: 'desc',
-      },
-    });
+    // ============================================
+    // CONFIGURACIÓN DE ORDENAMIENTO
+    // ============================================
+    const orderBy: any = {};
 
-    return tramites.map((tramite) => ({
-      ...tramite,
-      observaciones_count: tramite._count.observaciones,
-      reenvios_count: tramite._count.reenvios,
-      _count: undefined,
-    }));
+    if (filterDto.ordenar_por) {
+      orderBy[filterDto.ordenar_por] = filterDto.orden || 'desc';
+    } else {
+      // Ordenamiento por defecto: más recientes primero
+      orderBy.fecha_envio = 'desc';
+    }
+
+    // ============================================
+    // EJECUTAR CONSULTAS EN PARALELO
+    // ============================================
+    const [tramites, total] = await Promise.all([
+      // Obtener trámites paginados
+      this.prisma.tramite.findMany({
+        where,
+        include: {
+          documento: {
+            include: {
+              tipo: true,
+            },
+          },
+          remitente: {
+            select: {
+              id_usuario: true,
+              nombres: true,
+              apellidos: true,
+              correo: true,
+            },
+          },
+          receptor: {
+            select: {
+              id_usuario: true,
+              nombres: true,
+              apellidos: true,
+              correo: true,
+            },
+          },
+          areaRemitente: true,
+          tramiteOriginal: {
+            select: {
+              id_tramite: true,
+              codigo: true,
+              asunto: true,
+            },
+          },
+          _count: {
+            select: {
+              observaciones: true,
+              reenvios: true,
+            },
+          },
+        },
+        orderBy,
+        skip,
+        take: limite,
+      }),
+
+      // Contar total de registros (para paginación)
+      this.prisma.tramite.count({ where }),
+    ]);
+
+    // ============================================
+    // CALCULAR METADATA DE PAGINACIÓN
+    // ============================================
+    const totalPaginas = Math.ceil(total / limite);
+    const tieneSiguiente = pagina < totalPaginas;
+    const tieneAnterior = pagina > 1;
+
+    // ============================================
+    // FORMATEAR Y RETORNAR RESPUESTA
+    // ============================================
+    return {
+      data: tramites.map((tramite) => ({
+        ...tramite,
+        observaciones_count: tramite._count.observaciones,
+        reenvios_count: tramite._count.reenvios,
+        _count: undefined,
+      })),
+
+      // Metadata de paginación
+      paginacion: {
+        pagina_actual: pagina,
+        limite,
+        total_registros: total,
+        total_paginas: totalPaginas,
+        tiene_siguiente: tieneSiguiente,
+        tiene_anterior: tieneAnterior,
+      },
+    };
   }
 
   /**
