@@ -14,9 +14,10 @@ import {
   StreamableFile,
   Header,
   Res,
+  UploadedFiles,
 } from '@nestjs/common';
 import { Response } from 'express';
-import { FileInterceptor } from '@nestjs/platform-express';
+import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import { DocumentosService } from './documentos.service';
 import { UploadDocumentoDto } from './dto/upload-documento.dto';
 import { FilterDocumentoDto } from './dto/filter-documento.dto';
@@ -207,5 +208,28 @@ export class DocumentosController {
     };
 
     return contentTypes[extension.toLowerCase()] || 'application/octet-stream';
+  }
+  /**
+   * Subir múltiples documentos en lote
+   * POST /api/documentos/upload-batch
+   * Acceso: ADMIN, RESP
+   */
+  @Post('upload-batch')
+  @Roles('ADMIN', 'RESP')
+  @UseInterceptors(FilesInterceptor('archivos', 50)) // Max 50 archivos
+  async uploadBatch(
+    @UploadedFiles() archivos: Express.Multer.File[],
+    @Body('id_tipo_documento') idTipoDocumento: string,
+    @CurrentUser('id_usuario') userId: string,
+  ) {
+    if (!archivos || archivos.length === 0) {
+      throw new BadRequestException('No se han proporcionado archivos');
+    }
+
+    if (!idTipoDocumento) {
+      throw new BadRequestException('El tipo de documento es obligatorio');
+    }
+
+    return this.documentosService.uploadBatch(archivos, idTipoDocumento, userId);
   }
 }

@@ -449,4 +449,104 @@ export class DocumentosService {
       },
     });
   }
+
+  /**
+   * Subir múltiples documentos en lote
+   * Usado para el flujo de envío automático
+   */
+  async uploadBatch(
+    archivos: Express.Multer.File[],
+    idTipoDocumento: string,
+    userId: string,
+  ): Promise<any[]> {
+    // Verificar tipo de documento
+    const tipoDocumento = await this.prisma.tipoDocumento.findUnique({
+      where: { id_tipo: idTipoDocumento },
+    });
+
+    if (!tipoDocumento) {
+      throw new NotFoundException(
+        `Tipo de documento con ID ${idTipoDocumento} no encontrado`,
+      );
+    }
+
+    const documentosCreados: any[] = [];
+    const extensionesPermitidas = ['.pdf', '.png', '.jpg', '.jpeg'];
+    const maxSizeMB = parseInt(config.MAX_FILE_SIZE_MB);
+    const maxSizeBytes = maxSizeMB * 1024 * 1024;
+
+    for (const archivo of archivos) {
+      // Validar extensión
+      const extension = archivo.originalname
+        .substring(archivo.originalname.lastIndexOf('.'))
+        .toLowerCase();
+
+      if (!extensionesPermitidas.includes(extension)) {
+        throw new BadRequestException(
+          `Archivo ${archivo.originalname}: Extensión ${extension} no permitida`,
+        );
+      }
+
+      // Validar tamaño
+      if (archivo.size > maxSizeBytes) {
+        throw new BadRequestException(
+          `Archivo ${archivo.originalname}: Excede el tamaño máximo de ${maxSizeMB}MB`,
+        );
+      }
+
+      // Generar título automático (DNI + tipo)
+      const dniExtraido = archivo.originalname.substring(0, 8);
+      const titulo = `${tipoDocumento.nombre} - DNI ${dniExtraido}`;
+
+      // Generar ruta única
+      const rutaArchivo = this.r2Service.generateFilePath(
+        archivo.originalname,
+        userId,
+      );
+
+      // Subir a R2
+      await this.r2Service.uploadFile(
+        archivo.buffer,
+        rutaArchivo,
+        archivo.mimetype,
+        {
+          titulo,
+          tipo: tipoDocumento.codigo,
+          usuario: userId,
+          modo: 'auto_lote',
+        },
+      );
+
+      // Guardar en BD
+      const documento = await this.prisma.documento.create({
+        data: {
+          titulo,
+          ruta_archivo: rutaArchivo,
+          nombre_archivo: archivo.originalname,
+          extension,
+          tamano_bytes: BigInt(archivo.size),
+          id_tipo: idTipoDocumento,
+          creado_por: userId,
+        },
+        include: {
+          tipo: true,
+          creador: {
+            select: {
+              id_usuario: true,
+              nombres: true,
+              apellidos: true,
+            },
+          },
+        },
+      });
+
+      documentosCreados.push({
+        ...documento,
+        tamano_bytes: documento.tamano_bytes.toString(),
+        dni_extraido: dniExtraido,
+      });
+    }
+
+    return documentosCreados;
+  }
 }

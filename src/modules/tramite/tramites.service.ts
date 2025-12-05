@@ -11,6 +11,7 @@ import { AnularTramiteDto } from './dto/anular-tramite.dto';
 import { FilterTramiteDto } from './dto/filter-tramite.dto';
 import { NotificacionesService } from '../notificaciones/notificaciones.service';
 import { CreateTramiteBulkDto } from './dto/create-tramite-bulk.dto';
+import { CreateTramiteAutoLoteDto } from './dto/create-tramite-auto-lote.dto';
 
 @Injectable()
 export class TramitesService {
@@ -1197,5 +1198,317 @@ export class TramitesService {
       total: tramitesCreados.length,
       tramites: tramitesCreados,
     };
+  }
+  /**
+   * Detectar destinatarios automáticamente por DNI en nombre de archivo
+   * Endpoint de "preview" antes de confirmar el envío
+   */
+  async detectarDestinatarios(
+    archivos: Express.Multer.File[],
+    idTipoDocumento: string,
+    userId: string,
+  ): Promise<{
+    exitosos: any[];
+    fallidos: any[];
+    tipo_documento: any;
+  }> {
+    // Verificar que el tipo de documento existe
+    const tipoDocumento = await this.prisma.tipoDocumento.findUnique({
+      where: { id_tipo: idTipoDocumento },
+    });
+
+    if (!tipoDocumento) {
+      throw new NotFoundException(
+        `Tipo de documento con ID ${idTipoDocumento} no encontrado`,
+      );
+    }
+
+    const exitosos: any[] = [];
+    const fallidos: any[] = [];
+
+    for (const archivo of archivos) {
+      // Extraer DNI de los primeros 8 caracteres del nombre
+      const nombreArchivo = archivo.originalname;
+      const dniExtraido = nombreArchivo.substring(0, 8);
+
+      // Validar que sea un DNI válido (8 dígitos numéricos)
+      if (!/^\d{8}$/.test(dniExtraido)) {
+        fallidos.push({
+          nombre_archivo: nombreArchivo,
+          dni: dniExtraido,
+          encontrado: false,
+          error: 'El nombre del archivo no inicia con un DNI válido (8 dígitos)',
+        });
+        continue;
+      }
+
+      // Buscar trabajador por DNI
+      const trabajador = await this.prisma.usuario.findUnique({
+        where: { dni: dniExtraido, activo: true },
+        include: {
+          area: true,
+          roles: {
+            include: {
+              rol: true,
+            },
+          },
+        },
+      });
+
+      if (!trabajador) {
+        fallidos.push({
+          nombre_archivo: nombreArchivo,
+          dni: dniExtraido,
+          encontrado: false,
+          error: `No se encontró un usuario activo con DNI ${dniExtraido}`,
+        });
+        continue;
+      }
+
+      // Verificar que sea trabajador (rol TRAB)
+      const esTrabajador = trabajador.roles.some(
+        (ur) => ur.rol.codigo === 'TRAB',
+      );
+
+      if (!esTrabajador) {
+        fallidos.push({
+          nombre_archivo: nombreArchivo,
+          dni: dniExtraido,
+          encontrado: true,
+          id_usuario: trabajador.id_usuario,
+          nombre_completo: `${trabajador.nombres} ${trabajador.apellidos}`,
+          error: 'El usuario no tiene rol de trabajador (TRAB)',
+        });
+        continue;
+      }
+
+      // Usuario válido encontrado
+      exitosos.push({
+        nombre_archivo: nombreArchivo,
+        dni: dniExtraido,
+        encontrado: true,
+        id_usuario: trabajador.id_usuario,
+        nombre_completo: `${trabajador.nombres} ${trabajador.apellidos}`,
+        area: trabajador.area.nombre,
+        // Archivo temporal (buffer) que se subirá después
+        archivo_buffer: archivo.buffer,
+        archivo_mimetype: archivo.mimetype,
+        archivo_size: archivo.size,
+      });
+    }
+
+    return {
+      exitosos,
+      fallidos,
+      tipo_documento: {
+        id_tipo: tipoDocumento.id_tipo,
+        codigo: tipoDocumento.codigo,
+        nombre: tipoDocumento.nombre,
+        requiere_firma: tipoDocumento.requiere_firma,
+        requiere_respuesta: tipoDocumento.requiere_respuesta,
+      },
+    };
+  }
+
+  /**
+   * Crear trámites automáticos en lote con documentos ya subidos
+   */
+  async createAutoLote(
+    createAutoLoteDto: CreateTramiteAutoLoteDto,
+    userId: string,
+  ) {
+    // Verificar que el tipo de documento existe
+    const tipoDocumento = await this.prisma.tipoDocumento.findUnique({
+      where: { id_tipo: createAutoLoteDto.id_tipo_documento },
+    });
+
+    if (!tipoDocumento) {
+      throw new NotFoundException(
+        `Tipo de documento con ID ${createAutoLoteDto.id_tipo_documento} no encontrado`,
+      );
+    }
+
+    // Verificar que todos los documentos existen
+    const idsDocumentos = createAutoLoteDto.documentos.map((d) => d.id_documento);
+    const documentos = await this.prisma.documento.findMany({
+      where: {
+        id_documento: { in: idsDocumentos },
+      },
+    });
+
+    if (documentos.length !== idsDocumentos.length) {
+      throw new NotFoundException('Uno o más documentos no fueron encontrados');
+    }
+
+    // Verificar que todos los usuarios existen y son trabajadores
+    const idsUsuarios = createAutoLoteDto.documentos.map((d) => d.id_usuario);
+    const usuarios = await this.prisma.usuario.findMany({
+      where: {
+        id_usuario: { in: idsUsuarios },
+        activo: true,
+      },
+      include: {
+        roles: {
+          include: {
+            rol: true,
+          },
+        },
+      },
+    });
+
+    if (usuarios.length !== idsUsuarios.length) {
+      throw new NotFoundException(
+        'Uno o más usuarios no fueron encontrados o no están activos',
+      );
+    }
+
+    // Validar que todos sean trabajadores
+    const todosEsTrabajadores = usuarios.every((u) =>
+      u.roles.some((ur) => ur.rol.codigo === 'TRAB'),
+    );
+
+    if (!todosEsTrabajadores) {
+      throw new BadRequestException(
+        'Todos los destinatarios deben ser trabajadores (rol TRAB)',
+      );
+    }
+
+    // Obtener información del remitente
+    const remitente = await this.prisma.usuario.findUnique({
+      where: { id_usuario: userId },
+      include: { area: true },
+    });
+
+    if (!remitente) {
+      throw new NotFoundException('Remitente no encontrado');
+    }
+
+    const year = new Date().getFullYear();
+
+    // Crear trámites en una transacción
+    const tramitesCreados = await this.prisma.$transaction(async (tx) => {
+      const tramites: any[] = [];
+
+      for (const docData of createAutoLoteDto.documentos) {
+        // Generar código único
+        const count = await tx.tramite.count();
+        const codigo = `TRAM-${year}-${String(count + 1).padStart(6, '0')}`;
+
+        // Crear trámite
+        const tramite = await tx.tramite.create({
+          data: {
+            codigo,
+            id_documento: docData.id_documento,
+            id_remitente: userId,
+            id_area_remitente: remitente.id_area,
+            id_receptor: docData.id_usuario,
+            asunto: docData.asunto,
+            mensaje: docData.mensaje,
+            estado: 'ENVIADO',
+            requiere_firma: tipoDocumento.requiere_firma,
+            requiere_respuesta: tipoDocumento.requiere_respuesta,
+          },
+          include: {
+            documento: {
+              include: { tipo: true },
+            },
+            remitente: {
+              select: {
+                id_usuario: true,
+                nombres: true,
+                apellidos: true,
+                correo: true,
+              },
+            },
+            receptor: {
+              select: {
+                id_usuario: true,
+                nombres: true,
+                apellidos: true,
+                correo: true,
+              },
+            },
+            areaRemitente: true,
+          },
+        });
+
+        // Registrar en historial
+        await tx.historialTramite.create({
+          data: {
+            id_tramite: tramite.id_tramite,
+            accion: 'CREACION',
+            detalle: 'Trámite creado automáticamente en lote',
+            estado_nuevo: 'ENVIADO',
+            realizado_por: userId,
+            datos_adicionales: {
+              modo: 'auto_lote',
+              dni_detectado: docData.dni,
+              nombre_archivo: docData.nombre_archivo,
+            },
+          },
+        });
+
+        tramites.push(tramite);
+      }
+
+      return tramites;
+    });
+
+    // Crear notificaciones para todos los receptores
+    for (const tramite of tramitesCreados) {
+      await this.notificacionesService.notificarTramiteRecibido(
+        tramite.id_receptor,
+        tramite.id_tramite,
+        `${remitente.nombres} ${remitente.apellidos}`,
+        tramite.asunto,
+      );
+
+      if (tramite.requiere_firma) {
+        await this.notificacionesService.notificarDocumentoRequiereFirma(
+          tramite.id_receptor,
+          tramite.id_tramite,
+          tramite.asunto,
+        );
+      }
+    }
+
+    return {
+      mensaje: `Se crearon ${tramitesCreados.length} trámites exitosamente`,
+      total: tramitesCreados.length,
+      tramites: tramitesCreados,
+    };
+  }
+
+  /**
+   * Generar asunto y mensaje predeterminados según tipo de documento
+   */
+  generateDefaultMessage(
+    tipoDocumento: string,
+    nombreTrabajador: string,
+  ): { asunto: string; mensaje: string } {
+    const templates: Record<
+      string,
+      { asunto: string; mensaje: string }
+    > = {
+      CONTRATO: {
+        asunto: `Contrato Laboral - ${nombreTrabajador}`,
+        mensaje: `Estimado/a ${nombreTrabajador}, se le envía su contrato laboral para revisión y firma electrónica.`,
+      },
+      MEMO: {
+        asunto: `Memorándum - ${nombreTrabajador}`,
+        mensaje: `Estimado/a ${nombreTrabajador}, se le remite el presente memorándum para su conocimiento.`,
+      },
+      NOTIF: {
+        asunto: `Notificación Oficial - ${nombreTrabajador}`,
+        mensaje: `Estimado/a ${nombreTrabajador}, se le notifica oficialmente mediante el presente documento.`,
+      },
+    };
+
+    return (
+      templates[tipoDocumento] || {
+        asunto: `Documento - ${nombreTrabajador}`,
+        mensaje: `Estimado/a ${nombreTrabajador}, se le envía el siguiente documento para su revisión.`,
+      }
+    );
   }
 }

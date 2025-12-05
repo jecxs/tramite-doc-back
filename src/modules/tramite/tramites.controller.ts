@@ -8,6 +8,9 @@ import {
   UseGuards,
   Query,
   ParseUUIDPipe,
+  UseInterceptors,
+  UploadedFiles,
+  BadRequestException,
 } from '@nestjs/common';
 import { TramitesService } from './tramites.service';
 import { CreateTramiteDto } from './dto/create-tramite.dto';
@@ -19,6 +22,8 @@ import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { CreateTramiteBulkDto } from './dto/create-tramite-bulk.dto';
+import { FilesInterceptor } from '@nestjs/platform-express';
+import { CreateTramiteAutoLoteDto } from './dto/create-tramite-auto-lote.dto';
 
 @Controller('tramites')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -153,5 +158,69 @@ export class TramitesController {
     @CurrentUser('roles') userRoles: string[],
   ) {
     return this.tramitesService.anular(id, anularDto, userId, userRoles);
+  }
+
+  /**
+   * PASO 1: Detectar destinatarios automáticamente (PREVIEW)
+   * POST /api/tramites/auto-lote/detectar
+   * Acceso: ADMIN, RESP
+   *
+   * Sube múltiples archivos y detecta destinatarios por DNI
+   * Sin crear trámites aún, solo para visualizar
+   */
+  @Post('auto-lote/detectar')
+  @Roles('ADMIN', 'RESP')
+  @UseInterceptors(FilesInterceptor('archivos', 50)) // Max 50 archivos
+  async detectarDestinatarios(
+    @UploadedFiles() archivos: Express.Multer.File[],
+    @Body('id_tipo_documento') idTipoDocumento: string,
+    @CurrentUser('id_usuario') userId: string,
+  ) {
+    if (!archivos || archivos.length === 0) {
+      throw new BadRequestException('No se han proporcionado archivos');
+    }
+
+    if (!idTipoDocumento) {
+      throw new BadRequestException('El tipo de documento es obligatorio');
+    }
+
+    return this.tramitesService.detectarDestinatarios(
+      archivos,
+      idTipoDocumento,
+      userId,
+    );
+  }
+
+  /**
+   * PASO 2: Crear trámites automáticos en lote (CONFIRMACIÓN)
+   * POST /api/tramites/auto-lote
+   * Acceso: ADMIN, RESP
+   *
+   * Crea los trámites con documentos ya subidos y validados
+   */
+  @Post('auto-lote')
+  @Roles('ADMIN', 'RESP')
+  async createAutoLote(
+    @Body() createAutoLoteDto: CreateTramiteAutoLoteDto,
+    @CurrentUser('id_usuario') userId: string,
+  ) {
+    return this.tramitesService.createAutoLote(createAutoLoteDto, userId);
+  }
+
+  /**
+   * Generar mensajes predeterminados para preview
+   * GET /api/tramites/auto-lote/template/:codigoTipo
+   * Acceso: ADMIN, RESP
+   */
+  @Get('auto-lote/template/:codigoTipo')
+  @Roles('ADMIN', 'RESP')
+  getDefaultTemplate(
+    @Param('codigoTipo') codigoTipo: string,
+    @Query('nombreTrabajador') nombreTrabajador: string,
+  ) {
+    return this.tramitesService.generateDefaultMessage(
+      codigoTipo,
+      nombreTrabajador || 'Trabajador',
+    );
   }
 }
