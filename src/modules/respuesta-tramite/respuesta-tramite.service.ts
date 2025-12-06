@@ -9,6 +9,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { CreateRespuestaTramiteDto } from './dto/create-respuesta-tramite.dto';
 import { NotificacionesService } from '../notificaciones/notificaciones.service';
 import { ERoles } from 'src/common/enums/ERoles.enum';
+import { ETramitStatus } from 'src/common/enums/ETramitStatus.enum';
 
 @Injectable()
 export class RespuestaTramiteService {
@@ -73,7 +74,7 @@ export class RespuestaTramiteService {
     }
 
     // 4. Verificar que el trámite está en estado LEIDO
-    if (tramite.estado !== 'LEIDO') {
+    if (tramite.estado !== ETramitStatus.LEIDO) {
       throw new BadRequestException(
         'El trámite debe estar en estado LEIDO para poder responder',
       );
@@ -113,7 +114,7 @@ export class RespuestaTramiteService {
       const tramiteActualizado = await tx.tramite.update({
         where: { id_tramite: idTramite },
         data: {
-          estado: 'RESPONDIDO',
+          estado: ETramitStatus.RESPONDIDO,
         },
         include: {
           documento: {
@@ -144,8 +145,8 @@ export class RespuestaTramiteService {
           id_tramite: idTramite,
           accion: 'RESPUESTA',
           detalle: 'Conformidad confirmada por el trabajador',
-          estado_anterior: 'LEIDO',
-          estado_nuevo: 'RESPONDIDO',
+          estado_anterior: ETramitStatus.LEIDO,
+          estado_nuevo: ETramitStatus.RESPONDIDO,
           realizado_por: userId,
           ip_address: ipAddress,
           datos_adicionales: {

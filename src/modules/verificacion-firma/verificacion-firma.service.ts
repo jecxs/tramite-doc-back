@@ -8,6 +8,7 @@ import {
 import { PrismaService } from '../../prisma/prisma.service';
 import { EmailService } from '../../common/services/email.service';
 import { config } from 'src/config';
+import { ETramitStatus } from 'src/common/enums/ETramitStatus.enum';
 
 @Injectable()
 export class VerificacionFirmaService {
@@ -78,7 +79,7 @@ export class VerificacionFirmaService {
     }
 
     // Verificar que está en estado LEIDO
-    if (tramite.estado !== 'LEIDO') {
+    if (tramite.estado !== ETramitStatus.LEIDO) {
       throw new BadRequestException(
         'El trámite debe estar en estado LEIDO para poder firmarlo',
       );

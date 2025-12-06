@@ -13,6 +13,7 @@ import { NotificacionesService } from '../notificaciones/notificaciones.service'
 import { CreateTramiteBulkDto } from './dto/create-tramite-bulk.dto';
 import { CreateTramiteAutoLoteDto } from './dto/create-tramite-auto-lote.dto';
 import { ERoles } from 'src/common/enums/ERoles.enum';
+import { ETramitStatus } from 'src/common/enums/ETramitStatus.enum';
 
 @Injectable()
 export class TramitesService {
@@ -104,7 +105,7 @@ export class TramitesService {
         id_receptor: createTramiteDto.id_receptor,
         asunto: createTramiteDto.asunto,
         mensaje: createTramiteDto.mensaje,
-        estado: 'ENVIADO',
+        estado: ETramitStatus.ENVIADO,
         requiere_firma: documento.tipo.requiere_firma,
         requiere_respuesta: documento.tipo.requiere_respuesta,
       },
@@ -140,7 +141,7 @@ export class TramitesService {
         id_tramite: tramite.id_tramite,
         accion: 'CREACION',
         detalle: 'Trámite creado y enviado',
-        estado_nuevo: 'ENVIADO',
+        estado_nuevo: ETramitStatus.ENVIADO,
         realizado_por: userId,
       },
     });
@@ -582,7 +583,7 @@ export class TramitesService {
     }
 
     // Solo si está en estado ENVIADO
-    if (tramite.estado !== 'ENVIADO') {
+    if (tramite.estado !== ETramitStatus.ENVIADO) {
       throw new BadRequestException('El trámite ya fue abierto anteriormente');
     }
 
@@ -590,7 +591,7 @@ export class TramitesService {
     const tramiteActualizado = await this.prisma.tramite.update({
       where: { id_tramite: id },
       data: {
-        estado: 'ABIERTO',
+        estado: ETramitStatus.ABIERTO,
         fecha_abierto: new Date(),
       },
       include: {
@@ -653,8 +654,8 @@ export class TramitesService {
         id_tramite: id,
         accion: 'APERTURA',
         detalle: 'Trámite abierto por el receptor',
-        estado_anterior: 'ENVIADO',
-        estado_nuevo: 'ABIERTO',
+        estado_anterior: ETramitStatus.ENVIADO,
+        estado_nuevo: ETramitStatus.ABIERTO,
         realizado_por: userId,
       },
     });
@@ -683,7 +684,7 @@ export class TramitesService {
     }
 
     // Solo si está en estado ABIERTO
-    if (tramite.estado !== 'ABIERTO') {
+    if (tramite.estado !== ETramitStatus.ABIERTO) {
       throw new BadRequestException(
         'El trámite debe estar abierto para marcarlo como leído',
       );
@@ -693,7 +694,7 @@ export class TramitesService {
     const tramiteActualizado = await this.prisma.tramite.update({
       where: { id_tramite: id },
       data: {
-        estado: 'LEIDO',
+        estado: ETramitStatus.LEIDO,
         fecha_leido: new Date(),
       },
       include: {
@@ -756,8 +757,8 @@ export class TramitesService {
         id_tramite: id,
         accion: 'LECTURA',
         detalle: 'Documento leído por el receptor',
-        estado_anterior: 'ABIERTO',
-        estado_nuevo: 'LEIDO',
+        estado_anterior: ETramitStatus.ABIERTO,
+        estado_nuevo: ETramitStatus.LEIDO,
         realizado_por: userId,
       },
     });
@@ -837,7 +838,7 @@ export class TramitesService {
         id_receptor: tramiteOriginal.id_receptor, // Mismo receptor
         asunto: reenviarDto.asunto,
         mensaje: reenviarDto.mensaje,
-        estado: 'ENVIADO',
+        estado: ETramitStatus.ENVIADO,
         requiere_firma: nuevoDocumento.tipo.requiere_firma,
         requiere_respuesta: nuevoDocumento.tipo.requiere_respuesta,
         es_reenvio: true,
@@ -880,7 +881,7 @@ export class TramitesService {
         id_tramite: nuevoTramite.id_tramite,
         accion: 'REENVIO',
         detalle: `Reenvío del trámite ${tramiteOriginal.codigo}. Motivo: ${reenviarDto.motivo_reenvio}`,
-        estado_nuevo: 'ENVIADO',
+        estado_nuevo: ETramitStatus.ENVIADO,
         realizado_por: userId,
         datos_adicionales: {
           tramite_original: idTramiteOriginal,
@@ -929,19 +930,19 @@ export class TramitesService {
     }
 
     // No se puede anular si ya está firmado
-    if (tramite.estado === 'FIRMADO') {
+    if (tramite.estado === ETramitStatus.FIRMADO) {
       throw new BadRequestException('No se puede anular un trámite firmado');
     }
 
     // No se puede anular si ya está anulado
-    if (tramite.estado === 'ANULADO') {
+    if (tramite.estado === ETramitStatus.ANULADO) {
       throw new BadRequestException('El trámite ya está anulado');
     }
 
     const tramiteAnulado = await this.prisma.tramite.update({
       where: { id_tramite: id },
       data: {
-        estado: 'ANULADO',
+        estado: ETramitStatus.ANULADO,
         fecha_anulado: new Date(),
         anulado_por: userId,
         motivo_anulacion: anularDto.motivo_anulacion,
@@ -955,7 +956,7 @@ export class TramitesService {
         accion: 'ANULACION',
         detalle: `Trámite anulado. Motivo: ${anularDto.motivo_anulacion}`,
         estado_anterior: tramite.estado,
-        estado_nuevo: 'ANULADO',
+        estado_nuevo: ETramitStatus.ANULADO,
         realizado_por: userId,
       },
     });
@@ -1000,11 +1001,21 @@ export class TramitesService {
     const [total, enviados, abiertos, leidos, firmados, anulados, porArea] =
       await Promise.all([
         this.prisma.tramite.count({ where }),
-        this.prisma.tramite.count({ where: { ...where, estado: 'ENVIADO' } }),
-        this.prisma.tramite.count({ where: { ...where, estado: 'ABIERTO' } }),
-        this.prisma.tramite.count({ where: { ...where, estado: 'LEIDO' } }),
-        this.prisma.tramite.count({ where: { ...where, estado: 'FIRMADO' } }),
-        this.prisma.tramite.count({ where: { ...where, estado: 'ANULADO' } }),
+        this.prisma.tramite.count({
+          where: { ...where, estado: ETramitStatus.ENVIADO },
+        }),
+        this.prisma.tramite.count({
+          where: { ...where, estado: ETramitStatus.ABIERTO },
+        }),
+        this.prisma.tramite.count({
+          where: { ...where, estado: ETramitStatus.LEIDO },
+        }),
+        this.prisma.tramite.count({
+          where: { ...where, estado: ETramitStatus.FIRMADO },
+        }),
+        this.prisma.tramite.count({
+          where: { ...where, estado: ETramitStatus.ANULADO },
+        }),
         this.prisma.tramite.groupBy({
           by: ['id_area_remitente'],
           where,
@@ -1130,7 +1141,7 @@ export class TramitesService {
             id_receptor: receptor.id_usuario,
             asunto: createBulkDto.asunto,
             mensaje: createBulkDto.mensaje,
-            estado: 'ENVIADO',
+            estado: ETramitStatus.ENVIADO,
             requiere_firma: documento.tipo.requiere_firma,
             requiere_respuesta: documento.tipo.requiere_respuesta,
           },
@@ -1166,7 +1177,7 @@ export class TramitesService {
             id_tramite: tramite.id_tramite,
             accion: 'CREACION',
             detalle: 'Trámite creado y enviado (envío masivo)',
-            estado_nuevo: 'ENVIADO',
+            estado_nuevo: ETramitStatus.ENVIADO,
             realizado_por: userId,
           },
         });
@@ -1410,7 +1421,7 @@ export class TramitesService {
             id_receptor: docData.id_usuario,
             asunto: docData.asunto,
             mensaje: docData.mensaje,
-            estado: 'ENVIADO',
+            estado: ETramitStatus.ENVIADO,
             requiere_firma: tipoDocumento.requiere_firma,
             requiere_respuesta: tipoDocumento.requiere_respuesta,
           },
@@ -1444,7 +1455,7 @@ export class TramitesService {
             id_tramite: tramite.id_tramite,
             accion: 'CREACION',
             detalle: 'Trámite creado automáticamente en lote',
-            estado_nuevo: 'ENVIADO',
+            estado_nuevo: ETramitStatus.ENVIADO,
             realizado_por: userId,
             datos_adicionales: {
               modo: 'auto_lote',

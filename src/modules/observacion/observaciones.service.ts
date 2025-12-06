@@ -10,6 +10,7 @@ import { ResponderObservacionDto } from './dto/responder-observacion.dto';
 import { NotificacionesGateway } from './notificaciones.gateway';
 import { NotificacionesService } from '../notificaciones/notificaciones.service';
 import { ERoles } from 'src/common/enums/ERoles.enum';
+import { ETramitStatus } from 'src/common/enums/ETramitStatus.enum';
 
 @Injectable()
 export class ObservacionesService {
@@ -66,13 +67,13 @@ export class ObservacionesService {
     }
 
     // Verificar que el trámite esté en un estado válido para observaciones
-    if (tramite.estado === 'ANULADO') {
+    if (tramite.estado === ETramitStatus.ANULADO) {
       throw new BadRequestException(
         'No se pueden crear observaciones en un trámite anulado',
       );
     }
 
-    if (tramite.estado === 'FIRMADO') {
+    if (tramite.estado === ETramitStatus.FIRMADO) {
       throw new BadRequestException(
         'No se pueden crear observaciones en un trámite ya firmado',
       );
@@ -423,7 +424,7 @@ export class ObservacionesService {
             id_receptor: observacion.tramite.id_receptor,
             asunto: responderDto.asunto_reenvio || observacion.tramite.asunto,
             mensaje: `Documento corregido en respuesta a observación: ${observacion.descripcion}`,
-            estado: 'ENVIADO',
+            estado: ETramitStatus.ENVIADO,
             requiere_firma: documentoCorregido.tipo.requiere_firma,
             requiere_respuesta: documentoCorregido.tipo.requiere_respuesta,
             es_reenvio: true,
@@ -462,7 +463,7 @@ export class ObservacionesService {
             id_tramite: nuevoTramite.id_tramite,
             accion: 'REENVIO_POR_OBSERVACION',
             detalle: `Reenvío creado automáticamente al resolver observación ${id}`,
-            estado_nuevo: 'ENVIADO',
+            estado_nuevo: ETramitStatus.ENVIADO,
             realizado_por: userId,
             datos_adicionales: {
               tramite_original: tramiteOriginalId,

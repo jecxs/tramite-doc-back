@@ -2,6 +2,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { ERoles } from 'src/common/enums/ERoles.enum';
+import { ETramitStatus } from 'src/common/enums/ETramitStatus.enum';
 
 @Injectable()
 export class EstadisticasRespService {
@@ -48,7 +49,13 @@ export class EstadisticasRespService {
       this.prisma.tramite.count({
         where: {
           ...where,
-          estado: { in: ['ENVIADO', 'ABIERTO', 'LEIDO'] },
+          estado: {
+            in: [
+              ETramitStatus.ENVIADO,
+              ETramitStatus.ABIERTO,
+              ETramitStatus.LEIDO,
+            ],
+          },
         },
       }),
 
@@ -56,13 +63,13 @@ export class EstadisticasRespService {
       this.prisma.tramite.count({
         where: {
           ...where,
-          estado: { in: ['FIRMADO', 'RESPONDIDO'] },
+          estado: { in: [ETramitStatus.FIRMADO, ETramitStatus.RESPONDIDO] },
         },
       }),
 
       // Trámites anulados
       this.prisma.tramite.count({
-        where: { ...where, estado: 'ANULADO' },
+        where: { ...where, estado: ETramitStatus.ANULADO },
       }),
 
       // Promedio de tiempo de respuesta (fecha_envio -> fecha_leido)
@@ -214,13 +221,21 @@ export class EstadisticasRespService {
             this.prisma.tramite.count({
               where: {
                 id_receptor: trabajador.id_usuario,
-                estado: { in: ['ENVIADO', 'ABIERTO', 'LEIDO'] },
+                estado: {
+                  in: [
+                    ETramitStatus.ENVIADO,
+                    ETramitStatus.ABIERTO,
+                    ETramitStatus.LEIDO,
+                  ],
+                },
               },
             }),
             this.prisma.tramite.count({
               where: {
                 id_receptor: trabajador.id_usuario,
-                estado: { in: ['FIRMADO', 'RESPONDIDO'] },
+                estado: {
+                  in: [ETramitStatus.FIRMADO, ETramitStatus.RESPONDIDO],
+                },
               },
             }),
             this.calcularPromedioTiempoRespuesta({
@@ -386,9 +401,17 @@ export class EstadisticasRespService {
       const stats = tiposMap.get(key)!;
       stats.total++;
 
-      if (tramite.estado === 'FIRMADO') {
+      if (tramite.estado === ETramitStatus.FIRMADO) {
         stats.firmados++;
-      } else if (['ENVIADO', 'ABIERTO', 'LEIDO'].includes(tramite.estado)) {
+      } else if (
+        (
+          [
+            ETramitStatus.ENVIADO,
+            ETramitStatus.ABIERTO,
+            ETramitStatus.LEIDO,
+          ] as ETramitStatus[]
+        ).includes(tramite.estado as ETramitStatus)
+      ) {
         stats.pendientes++;
       }
     });
@@ -570,7 +593,11 @@ export class EstadisticasRespService {
         where: { ...where, requiere_firma: true },
       }),
       this.prisma.tramite.count({
-        where: { ...where, requiere_firma: true, estado: 'FIRMADO' },
+        where: {
+          ...where,
+          requiere_firma: true,
+          estado: ETramitStatus.FIRMADO,
+        },
       }),
     ]);
 

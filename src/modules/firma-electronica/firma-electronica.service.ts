@@ -8,6 +8,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { CreateFirmaElectronicaDto } from './dto/create-firma-electronica.dto';
 import { NotificacionesService } from '../notificaciones/notificaciones.service';
 import { ERoles } from 'src/common/enums/ERoles.enum';
+import { ETramitStatus } from 'src/common/enums/ETramitStatus.enum';
 
 @Injectable()
 export class FirmaElectronicaService {
@@ -65,7 +66,7 @@ export class FirmaElectronicaService {
     }
 
     // Verificar que el trámite está en estado LEIDO
-    if (tramite.estado !== 'LEIDO') {
+    if (tramite.estado !== ETramitStatus.LEIDO) {
       throw new BadRequestException(
         'El trámite debe estar en estado LEIDO para poder firmarlo',
       );
@@ -104,7 +105,7 @@ export class FirmaElectronicaService {
       const tramiteActualizado = await tx.tramite.update({
         where: { id_tramite: idTramite },
         data: {
-          estado: 'FIRMADO',
+          estado: ETramitStatus.FIRMADO,
           fecha_firmado: new Date(),
         },
         include: {
@@ -136,8 +137,8 @@ export class FirmaElectronicaService {
           id_tramite: idTramite,
           accion: 'FIRMA',
           detalle: 'Documento firmado electrónicamente',
-          estado_anterior: 'LEIDO',
-          estado_nuevo: 'FIRMADO',
+          estado_anterior: ETramitStatus.LEIDO,
+          estado_nuevo: ETramitStatus.FIRMADO,
           realizado_por: userId,
           ip_address: ipAddress,
           datos_adicionales: {
@@ -289,7 +290,11 @@ export class FirmaElectronicaService {
         where: {
           requiere_firma: true,
           estado: {
-            in: ['ENVIADO', 'ABIERTO', 'LEIDO'],
+            in: [
+              ETramitStatus.ENVIADO,
+              ETramitStatus.ABIERTO,
+              ETramitStatus.LEIDO,
+            ],
           },
         },
       }),

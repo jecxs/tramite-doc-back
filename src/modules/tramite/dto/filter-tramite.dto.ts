@@ -1,6 +1,15 @@
 // src/modules/tramite/dto/filter-tramite.dto.ts
-import { IsOptional, IsString, IsUUID, IsIn, IsDateString, IsInt, Min } from 'class-validator';
+import {
+  IsOptional,
+  IsString,
+  IsUUID,
+  IsIn,
+  IsDateString,
+  IsInt,
+  Min,
+} from 'class-validator';
 import { Transform, Type } from 'class-transformer';
+import { ETramitStatus } from 'src/common/enums/ETramitStatus.enum';
 
 export class FilterTramiteDto {
   // ============================================
@@ -32,10 +41,20 @@ export class FilterTramiteDto {
   // ============================================
 
   @IsOptional()
-  @IsIn(['ENVIADO', 'ABIERTO', 'LEIDO', 'FIRMADO', 'ANULADO', 'RESPONDIDO'], {
-    message: 'Estado inválido',
-  })
-  estado?: string;
+  @IsIn(
+    [
+      ETramitStatus.ENVIADO,
+      ETramitStatus.ABIERTO,
+      ETramitStatus.LEIDO,
+      ETramitStatus.FIRMADO,
+      ETramitStatus.ANULADO,
+      ETramitStatus.RESPONDIDO,
+    ],
+    {
+      message: 'Estado inválido',
+    },
+  )
+  estado?: ETramitStatus;
 
   @IsOptional()
   @Transform(({ value }) => value === 'true' || value === true)
@@ -54,7 +73,9 @@ export class FilterTramiteDto {
   // ============================================
 
   @IsOptional()
-  @IsUUID('4', { message: 'El ID del tipo de documento debe ser un UUID válido' })
+  @IsUUID('4', {
+    message: 'El ID del tipo de documento debe ser un UUID válido',
+  })
   id_tipo_documento?: string;
 
   // ============================================
@@ -62,27 +83,45 @@ export class FilterTramiteDto {
   // ============================================
 
   @IsOptional()
-  @IsDateString({}, { message: 'La fecha de inicio debe ser una fecha válida (YYYY-MM-DD)' })
+  @IsDateString(
+    {},
+    { message: 'La fecha de inicio debe ser una fecha válida (YYYY-MM-DD)' },
+  )
   fecha_envio_desde?: string; // Formato: YYYY-MM-DD
 
   @IsOptional()
-  @IsDateString({}, { message: 'La fecha de fin debe ser una fecha válida (YYYY-MM-DD)' })
+  @IsDateString(
+    {},
+    { message: 'La fecha de fin debe ser una fecha válida (YYYY-MM-DD)' },
+  )
   fecha_envio_hasta?: string; // Formato: YYYY-MM-DD
 
   @IsOptional()
-  @IsDateString({}, { message: 'La fecha debe ser una fecha válida (YYYY-MM-DD)' })
+  @IsDateString(
+    {},
+    { message: 'La fecha debe ser una fecha válida (YYYY-MM-DD)' },
+  )
   fecha_leido_desde?: string;
 
   @IsOptional()
-  @IsDateString({}, { message: 'La fecha debe ser una fecha válida (YYYY-MM-DD)' })
+  @IsDateString(
+    {},
+    { message: 'La fecha debe ser una fecha válida (YYYY-MM-DD)' },
+  )
   fecha_leido_hasta?: string;
 
   @IsOptional()
-  @IsDateString({}, { message: 'La fecha debe ser una fecha válida (YYYY-MM-DD)' })
+  @IsDateString(
+    {},
+    { message: 'La fecha debe ser una fecha válida (YYYY-MM-DD)' },
+  )
   fecha_firmado_desde?: string;
 
   @IsOptional()
-  @IsDateString({}, { message: 'La fecha debe ser una fecha válida (YYYY-MM-DD)' })
+  @IsDateString(
+    {},
+    { message: 'La fecha debe ser una fecha válida (YYYY-MM-DD)' },
+  )
   fecha_firmado_hasta?: string;
 
   // ============================================
@@ -106,9 +145,19 @@ export class FilterTramiteDto {
   // ============================================
 
   @IsOptional()
-  @IsIn(['fecha_envio', 'fecha_leido', 'fecha_firmado', 'asunto', 'codigo', 'estado'], {
-    message: 'Campo de ordenamiento inválido',
-  })
+  @IsIn(
+    [
+      'fecha_envio',
+      'fecha_leido',
+      'fecha_firmado',
+      'asunto',
+      'codigo',
+      'estado',
+    ],
+    {
+      message: 'Campo de ordenamiento inválido',
+    },
+  )
   ordenar_por?: string; // Campo por el cual ordenar
 
   @IsOptional()
