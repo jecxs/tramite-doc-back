@@ -122,7 +122,7 @@ export class EmailService {
 
                 <!-- Header -->
                 <tr>
-                  <td style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center;">
+                  <td style="background: linear-gradient(135deg, #267992 0%, #122547 100%); padding: 30px; text-align: center;">
                     <h1 style="color: #ffffff; margin: 0; font-size: 24px;">
                        Verificación de Firma Electrónica
                     </h1>
@@ -154,7 +154,7 @@ export class EmailService {
                     </p>
 
                     <!-- Código de Verificación -->
-                    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 25px; margin: 20px 0; border-radius: 8px; text-align: center;">
+                    <div style="background: linear-gradient(135deg, #058b87 0%, #0a2a3e 100%); padding: 25px; margin: 20px 0; border-radius: 8px; text-align: center;">
                       <div style="background-color: #ffffff; padding: 20px; border-radius: 8px; display: inline-block;">
                         <span style="font-size: 36px; font-weight: bold; color: #667eea; letter-spacing: 8px; font-family: 'Courier New', monospace;">
                           ${codigo}
