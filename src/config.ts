@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import env from 'env-var';
+import * as env from 'env-var';
 
 enum Environment {
   Development = 'development',
@@ -35,13 +35,13 @@ export const config: Readonly<AppConfig> = {
     (env
       .get('NODE_ENV')
       .default('development')
-      .asEnum(Object.values(Environment)) as Environment) ?? Environment.Development,
+      .asEnum(Object.values(Environment)) as Environment) ??
+    Environment.Development,
   PORT: env.get('PORT').default('3000').asIntPositive(),
-  CORS_ORIGINS: (env
-    .get('CORS_ORIGINS')
-    .default(corsDefaults)
-    .asArray(',') || corsDefaults.split(','))
-    .map((origin) => origin.trim()),
+  CORS_ORIGINS: (
+    env.get('CORS_ORIGINS').default(corsDefaults).asArray(',') ||
+    corsDefaults.split(',')
+  ).map((origin) => origin.trim()),
   DATABASE_URL: env.get('DATABASE_URL').required().asString(),
   JWT_SECRET: env
     .get('JWT_SECRET')

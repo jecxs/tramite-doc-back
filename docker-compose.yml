@@ -1,0 +1,70 @@
+version: '3.9'
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: tramite-doc-db
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-tramite_docs}
+      POSTGRES_USER: ${POSTGRES_USER:-root}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    ports:
+      - '5433:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U root -d tramite_docs']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    image: tramite-doc-back:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: tramite-doc-app
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: ${DATABASE_URL_DOCKER:-postgresql://root:postgres@db:5432/tramite_docs?schema=public}
+      NODE_ENV: production
+      PORT: 3000
+    ports:
+      - '3000:3000'
+    volumes:
+      - uploads:/app/uploads
+    restart: unless-stopped
+
+  migrate:
+    image: tramite-doc-back:latest
+    container_name: tramite-doc-migrate
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgresql://root:postgres@db:5432/tramite_docs?schema=public}
+    command: ['npx', 'prisma', 'migrate', 'deploy']
+    restart: 'no'
+
+  seed:
+    image: tramite-doc-back:latest
+    container_name: tramite-doc-seed
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgresql://root:postgres@db:5432/tramite_docs?schema=public}
+    command: ['sh', '-lc', 'npx prisma db push && node dist/prisma/seed.js']
+    restart: 'no'
+
+volumes:
+  pgdata:
+  uploads:
