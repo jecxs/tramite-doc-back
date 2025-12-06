@@ -26,6 +26,7 @@ import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { R2Service } from '../../common/services/r2.service';
+import { ERoles } from 'src/common/enums/ERoles.enum';
 
 @Controller('documentos')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -41,7 +42,7 @@ export class DocumentosController {
    * Acceso: ADMIN, RESP (quienes envían documentos)
    */
   @Post('upload')
-  @Roles('ADMIN', 'RESP')
+  @Roles(ERoles.ADMIN, ERoles.RESP)
   @UseInterceptors(FileInterceptor('file'))
   async upload(
     @Body() uploadDocumentoDto: UploadDocumentoDto,
@@ -61,7 +62,7 @@ export class DocumentosController {
    * Acceso: ADMIN, RESP
    */
   @Get()
-  @Roles('ADMIN', 'RESP')
+  @Roles(ERoles.ADMIN, ERoles.RESP)
   findAll(@Query() filterDto: FilterDocumentoDto) {
     return this.documentosService.findAll(filterDto);
   }
@@ -72,7 +73,7 @@ export class DocumentosController {
    * Acceso: Solo ADMIN
    */
   @Get('statistics')
-  @Roles('ADMIN')
+  @Roles(ERoles.ADMIN)
   getStatistics() {
     return this.documentosService.getStatistics();
   }
@@ -83,7 +84,7 @@ export class DocumentosController {
    * Acceso: ADMIN, RESP, TRAB (según permisos del documento/trámite)
    */
   @Get(':id/download')
-  @Roles('ADMIN', 'RESP', 'TRAB')
+  @Roles(ERoles.ADMIN, ERoles.RESP, ERoles.TRAB)
   getDownloadUrl(
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentUser('id_usuario') userId: string,
@@ -97,7 +98,7 @@ export class DocumentosController {
    * Acceso: ADMIN, RESP
    */
   @Get(':id')
-  @Roles('ADMIN', 'RESP')
+  @Roles(ERoles.ADMIN, ERoles.RESP)
   findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.documentosService.findOne(id);
   }
@@ -108,7 +109,7 @@ export class DocumentosController {
    * Acceso: ADMIN, RESP
    */
   @Post(':id/version')
-  @Roles('ADMIN', 'RESP')
+  @Roles(ERoles.ADMIN, ERoles.RESP)
   @UseInterceptors(FileInterceptor('file'))
   async createVersion(
     @Param('id', ParseUUIDPipe) id: string,
@@ -134,7 +135,7 @@ export class DocumentosController {
    * Acceso: ADMIN, RESP (solo el creador)
    */
   @Delete(':id')
-  @Roles('ADMIN', 'RESP')
+  @Roles(ERoles.ADMIN, ERoles.RESP)
   remove(
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentUser('id_usuario') userId: string,
@@ -147,7 +148,7 @@ export class DocumentosController {
    * Acceso: ADMIN, RESP, TRAB (según permisos del documento/trámite)
    */
   @Get(':id/content')
-  @Roles('ADMIN', 'RESP', 'TRAB')
+  @Roles(ERoles.ADMIN, ERoles.RESP, ERoles.TRAB)
   async getDocumentContent(
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentUser('id_usuario') userId: string,
@@ -215,7 +216,7 @@ export class DocumentosController {
    * Acceso: ADMIN, RESP
    */
   @Post('upload-batch')
-  @Roles('ADMIN', 'RESP')
+  @Roles(ERoles.ADMIN, ERoles.RESP)
   @UseInterceptors(FilesInterceptor('archivos', 50)) // Max 50 archivos
   async uploadBatch(
     @UploadedFiles() archivos: Express.Multer.File[],
@@ -230,6 +231,10 @@ export class DocumentosController {
       throw new BadRequestException('El tipo de documento es obligatorio');
     }
 
-    return this.documentosService.uploadBatch(archivos, idTipoDocumento, userId);
+    return this.documentosService.uploadBatch(
+      archivos,
+      idTipoDocumento,
+      userId,
+    );
   }
 }

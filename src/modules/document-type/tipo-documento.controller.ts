@@ -15,6 +15,7 @@ import { UpdateTipoDocumentoDto } from './dto/update-tipo-documento.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
+import { ERoles } from 'src/common/enums/ERoles.enum';
 
 @Controller('tipo-documento')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -27,7 +28,7 @@ export class TipoDocumentoController {
    * Acceso: Solo ADMIN
    */
   @Post()
-  @Roles('ADMIN')
+  @Roles(ERoles.ADMIN)
   create(@Body() createTipoDocumentoDto: CreateTipoDocumentoDto) {
     return this.tipoDocumentoService.create(createTipoDocumentoDto);
   }
@@ -38,7 +39,7 @@ export class TipoDocumentoController {
    * Acceso: ADMIN, RESP (necesitan ver tipos para clasificar documentos al enviar)
    */
   @Get()
-  @Roles('ADMIN', 'RESP')
+  @Roles(ERoles.ADMIN, ERoles.RESP)
   findAll() {
     return this.tipoDocumentoService.findAll();
   }
@@ -49,7 +50,7 @@ export class TipoDocumentoController {
    * Acceso: Solo ADMIN
    */
   @Get('statistics')
-  @Roles('ADMIN')
+  @Roles(ERoles.ADMIN)
   getStatistics() {
     return this.tipoDocumentoService.getStatistics();
   }
@@ -60,7 +61,7 @@ export class TipoDocumentoController {
    * Acceso: ADMIN, RESP (útil al enviar documentos)
    */
   @Get('requiere-firma')
-  @Roles('ADMIN', 'RESP')
+  @Roles(ERoles.ADMIN, ERoles.RESP)
   findRequiereFirma() {
     return this.tipoDocumentoService.findRequiereFirma();
   }
@@ -71,7 +72,7 @@ export class TipoDocumentoController {
    * Acceso: ADMIN, RESP (útil al enviar documentos)
    */
   @Get('requiere-respuesta')
-  @Roles('ADMIN', 'RESP')
+  @Roles(ERoles.ADMIN, ERoles.RESP)
   findRequiereRespuesta() {
     return this.tipoDocumentoService.findRequiereRespuesta();
   }
@@ -82,7 +83,7 @@ export class TipoDocumentoController {
    * Acceso: ADMIN, RESP
    */
   @Get('codigo/:codigo')
-  @Roles('ADMIN', 'RESP')
+  @Roles(ERoles.ADMIN, ERoles.RESP)
   findByCodigo(@Param('codigo') codigo: string) {
     return this.tipoDocumentoService.findByCodigo(codigo);
   }
@@ -93,7 +94,7 @@ export class TipoDocumentoController {
    * Acceso: ADMIN, RESP
    */
   @Get(':id')
-  @Roles('ADMIN', 'RESP')
+  @Roles(ERoles.ADMIN, ERoles.RESP)
   findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.tipoDocumentoService.findOne(id);
   }
@@ -104,7 +105,7 @@ export class TipoDocumentoController {
    * Acceso: Solo ADMIN
    */
   @Patch(':id')
-  @Roles('ADMIN')
+  @Roles(ERoles.ADMIN)
   update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() updateTipoDocumentoDto: UpdateTipoDocumentoDto,
@@ -118,7 +119,7 @@ export class TipoDocumentoController {
    * Acceso: Solo ADMIN
    */
   @Delete(':id')
-  @Roles('ADMIN')
+  @Roles(ERoles.ADMIN)
   remove(@Param('id', ParseUUIDPipe) id: string) {
     return this.tipoDocumentoService.remove(id);
   }

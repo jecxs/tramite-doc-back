@@ -18,6 +18,7 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { ERoles } from 'src/common/enums/ERoles.enum';
 
 @Controller('usuarios')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -30,7 +31,7 @@ export class UsersController {
    * Acceso: Solo ADMIN
    */
   @Post()
-  @Roles('ADMIN')
+  @Roles(ERoles.ADMIN)
   create(@Body() createUserDto: CreateUserDto) {
     return this.usersService.create(createUserDto);
   }
@@ -41,15 +42,15 @@ export class UsersController {
    * Acceso: ADMIN, RESP (pero RESP solo ve usuarios de su área)
    */
   @Get()
-  @Roles('ADMIN', 'RESP')
+  @Roles(ERoles.ADMIN, ERoles.RESP)
   async findAll(
     @Query() filterDto: FilterUserDto,
     @CurrentUser() currentUser: any,
   ) {
     // Si es RESP y no es ADMIN, solo puede ver usuarios de su área
     if (
-      currentUser.roles.includes('RESP') &&
-      !currentUser.roles.includes('ADMIN')
+      currentUser.roles.includes(ERoles.RESP) &&
+      !currentUser.roles.includes(ERoles.ADMIN)
     ) {
       filterDto.id_area = currentUser.id_area;
     }
@@ -63,7 +64,7 @@ export class UsersController {
    * Acceso: Solo ADMIN
    */
   @Get('statistics')
-  @Roles('ADMIN')
+  @Roles(ERoles.ADMIN)
   getStatistics() {
     return this.usersService.getStatistics();
   }
@@ -74,7 +75,7 @@ export class UsersController {
    * Acceso: ADMIN, RESP
    */
   @Get('rol/trabajadores')
-  @Roles('ADMIN', 'RESP')
+  @Roles(ERoles.ADMIN, ERoles.RESP)
   async getTrabajadores(@CurrentUser() currentUser: any) {
     return this.usersService.getTrabajadores(currentUser);
   }
@@ -92,20 +93,23 @@ export class UsersController {
     const usuario = await this.usersService.findOne(id);
 
     // ADMIN puede ver cualquier usuario
-    if (currentUser.roles.includes('ADMIN')) {
+    if (currentUser.roles.includes(ERoles.ADMIN)) {
       return usuario;
     }
 
     // RESP puede ver usuarios de su área
     if (
-      currentUser.roles.includes('RESP') &&
+      currentUser.roles.includes(ERoles.RESP) &&
       usuario.id_area === currentUser.id_area
     ) {
       return usuario;
     }
 
-    // Cualquier usuario puede ver su propio perfil
-    if (currentUser.id_usuario === id) {
+    // TRAB solo puede ver su propio perfil
+    if (
+      currentUser.roles.includes(ERoles.TRAB) &&
+      currentUser.id_usuario === id
+    ) {
       return usuario;
     }
 
@@ -119,7 +123,7 @@ export class UsersController {
    * Acceso: Solo ADMIN
    */
   @Patch(':id')
-  @Roles('ADMIN')
+  @Roles(ERoles.ADMIN)
   update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() updateUserDto: UpdateUserDto,
@@ -133,7 +137,7 @@ export class UsersController {
    * Acceso: Solo ADMIN
    */
   @Delete(':id/deactivate')
-  @Roles('ADMIN')
+  @Roles(ERoles.ADMIN)
   deactivate(@Param('id', ParseUUIDPipe) id: string) {
     return this.usersService.deactivate(id);
   }
@@ -144,7 +148,7 @@ export class UsersController {
    * Acceso: Solo ADMIN
    */
   @Patch(':id/activate')
-  @Roles('ADMIN')
+  @Roles(ERoles.ADMIN)
   activate(@Param('id', ParseUUIDPipe) id: string) {
     return this.usersService.activate(id);
   }
@@ -155,7 +159,7 @@ export class UsersController {
    * Acceso: Solo ADMIN
    */
   @Delete(':id')
-  @Roles('ADMIN')
+  @Roles(ERoles.ADMIN)
   remove(@Param('id', ParseUUIDPipe) id: string) {
     return this.usersService.remove(id);
   }

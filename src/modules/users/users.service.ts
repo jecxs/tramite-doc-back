@@ -10,6 +10,7 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { FilterUserDto } from './dto/filter-user.dto';
 import { config } from 'src/config';
+import { ERoles } from 'src/common/enums/ERoles.enum';
 
 @Injectable()
 export class UsersService {
@@ -224,7 +225,7 @@ export class UsersService {
   async getTrabajadores(currentUser: any) {
     // Primero, buscar el rol TRAB
     const rolTrab = await this.prisma.rol.findUnique({
-      where: { codigo: 'TRAB' },
+      where: { codigo: ERoles.TRAB },
     });
 
     if (!rolTrab) {

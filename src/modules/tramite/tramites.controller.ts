@@ -24,6 +24,7 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { CreateTramiteBulkDto } from './dto/create-tramite-bulk.dto';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { CreateTramiteAutoLoteDto } from './dto/create-tramite-auto-lote.dto';
+import { ERoles } from 'src/common/enums/ERoles.enum';
 
 @Controller('tramites')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -36,7 +37,7 @@ export class TramitesController {
    * Acceso: ADMIN, RESP
    */
   @Post()
-  @Roles('ADMIN', 'RESP')
+  @Roles(ERoles.ADMIN, ERoles.RESP)
   create(
     @Body() createTramiteDto: CreateTramiteDto,
     @CurrentUser('id_usuario') userId: string,
@@ -49,7 +50,7 @@ export class TramitesController {
    * Acceso: ADMIN, RESP
    */
   @Post('bulk')
-  @Roles('ADMIN', 'RESP')
+  @Roles(ERoles.ADMIN, ERoles.RESP)
   createBulk(
     @Body() createBulkDto: CreateTramiteBulkDto,
     @CurrentUser('id_usuario') userId: string,
@@ -63,7 +64,7 @@ export class TramitesController {
    * Acceso: ADMIN (ve todos), RESP (ve enviados por él), TRAB (ve recibidos)
    */
   @Get()
-  @Roles('ADMIN', 'RESP', 'TRAB')
+  @Roles(ERoles.ADMIN, ERoles.RESP, ERoles.TRAB)
   findAll(
     @Query() filterDto: FilterTramiteDto,
     @CurrentUser('id_usuario') userId: string,
@@ -78,7 +79,7 @@ export class TramitesController {
    * Acceso: ADMIN, RESP, TRAB (filtrado según permisos)
    */
   @Get('statistics')
-  @Roles('ADMIN', 'RESP', 'TRAB')
+  @Roles(ERoles.ADMIN, ERoles.RESP, ERoles.TRAB)
   getStatistics(
     @CurrentUser('id_usuario') userId: string,
     @CurrentUser('roles') userRoles: string[],
@@ -92,7 +93,7 @@ export class TramitesController {
    * Acceso: ADMIN, RESP (si es remitente), TRAB (si es receptor)
    */
   @Get(':id')
-  @Roles('ADMIN', 'RESP', 'TRAB')
+  @Roles(ERoles.ADMIN, ERoles.RESP, ERoles.TRAB)
   findOne(
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentUser('id_usuario') userId: string,
@@ -107,7 +108,7 @@ export class TramitesController {
    * Acceso: TRAB (solo el receptor)
    */
   @Patch(':id/abrir')
-  @Roles('TRAB')
+  @Roles(ERoles.TRAB)
   marcarComoAbierto(
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentUser('id_usuario') userId: string,
@@ -121,7 +122,7 @@ export class TramitesController {
    * Acceso: TRAB (solo el receptor)
    */
   @Patch(':id/leer')
-  @Roles('TRAB')
+  @Roles(ERoles.TRAB)
   marcarComoLeido(
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentUser('id_usuario') userId: string,
@@ -135,7 +136,7 @@ export class TramitesController {
    * Acceso: ADMIN, RESP (solo el remitente)
    */
   @Post(':id/reenviar')
-  @Roles('ADMIN', 'RESP')
+  @Roles(ERoles.ADMIN, ERoles.RESP)
   reenviar(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() reenviarDto: ReenviarTramiteDto,
@@ -150,7 +151,7 @@ export class TramitesController {
    * Acceso: ADMIN, RESP (solo el remitente)
    */
   @Patch(':id/anular')
-  @Roles('ADMIN', 'RESP')
+  @Roles(ERoles.ADMIN, ERoles.RESP)
   anular(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() anularDto: AnularTramiteDto,
@@ -169,7 +170,7 @@ export class TramitesController {
    * Sin crear trámites aún, solo para visualizar
    */
   @Post('auto-lote/detectar')
-  @Roles('ADMIN', 'RESP')
+  @Roles(ERoles.ADMIN, ERoles.RESP)
   @UseInterceptors(FilesInterceptor('archivos', 50)) // Max 50 archivos
   async detectarDestinatarios(
     @UploadedFiles() archivos: Express.Multer.File[],
@@ -199,7 +200,7 @@ export class TramitesController {
    * Crea los trámites con documentos ya subidos y validados
    */
   @Post('auto-lote')
-  @Roles('ADMIN', 'RESP')
+  @Roles(ERoles.ADMIN, ERoles.RESP)
   async createAutoLote(
     @Body() createAutoLoteDto: CreateTramiteAutoLoteDto,
     @CurrentUser('id_usuario') userId: string,
@@ -213,7 +214,7 @@ export class TramitesController {
    * Acceso: ADMIN, RESP
    */
   @Get('auto-lote/template/:codigoTipo')
-  @Roles('ADMIN', 'RESP')
+  @Roles(ERoles.ADMIN, ERoles.RESP)
   getDefaultTemplate(
     @Param('codigoTipo') codigoTipo: string,
     @Query('nombreTrabajador') nombreTrabajador: string,

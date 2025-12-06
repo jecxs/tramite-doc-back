@@ -10,13 +10,12 @@ import {
 } from '@nestjs/common';
 import { Request } from 'express';
 import { FirmaElectronicaService } from './firma-electronica.service';
-import { CreateFirmaElectronicaDto } from './dto/create-firma-electronica.dto';
-import { VerificarCodigoDto } from '../verificacion-firma/dto/verificar-codigo.dto';
 import { VerificacionFirmaService } from '../verificacion-firma/verificacion-firma.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { ERoles } from 'src/common/enums/ERoles.enum';
 
 @Controller('firma-electronica')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -32,7 +31,7 @@ export class FirmaElectronicaController {
    * Acceso: TRAB (solo el receptor del trámite)
    */
   @Post('tramite/:id/solicitar-codigo')
-  @Roles('TRAB')
+  @Roles(ERoles.TRAB)
   async solicitarCodigoVerificacion(
     @Param('id', ParseUUIDPipe) idTramite: string,
     @CurrentUser('id_usuario') userId: string,
@@ -62,7 +61,7 @@ export class FirmaElectronicaController {
    * Acceso: TRAB (solo el receptor del trámite)
    */
   @Post('tramite/:id/verificar-y-firmar')
-  @Roles('TRAB')
+  @Roles(ERoles.TRAB)
   async verificarYFirmar(
     @Param('id', ParseUUIDPipe) idTramite: string,
     @Body()
@@ -107,7 +106,7 @@ export class FirmaElectronicaController {
    * Acceso: ADMIN, RESP (remitente), TRAB (receptor)
    */
   @Get('tramite/:id')
-  @Roles('ADMIN', 'RESP', 'TRAB')
+  @Roles(ERoles.ADMIN, ERoles.RESP, ERoles.TRAB)
   findByTramite(
     @Param('id', ParseUUIDPipe) idTramite: string,
     @CurrentUser('id_usuario') userId: string,
@@ -126,7 +125,7 @@ export class FirmaElectronicaController {
    * Acceso: Público (cualquier usuario autenticado puede verificar)
    */
   @Get('tramite/:id/verificar')
-  @Roles('ADMIN', 'RESP', 'TRAB')
+  @Roles(ERoles.ADMIN, ERoles.RESP, ERoles.TRAB)
   verificarFirma(@Param('id', ParseUUIDPipe) idTramite: string) {
     return this.firmaElectronicaService.verificarFirma(idTramite);
   }
@@ -137,7 +136,7 @@ export class FirmaElectronicaController {
    * Acceso: Solo ADMIN
    */
   @Get('statistics')
-  @Roles('ADMIN')
+  @Roles(ERoles.ADMIN)
   getStatistics() {
     return this.firmaElectronicaService.getStatistics();
   }
@@ -148,7 +147,7 @@ export class FirmaElectronicaController {
    * Acceso: Solo ADMIN
    */
   @Get('verificacion/statistics')
-  @Roles('ADMIN')
+  @Roles(ERoles.ADMIN)
   getVerificacionStatistics() {
     return this.verificacionFirmaService.getEstadisticas();
   }

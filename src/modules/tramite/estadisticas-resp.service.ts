@@ -1,6 +1,7 @@
 // src/modules/tramite/estadisticas-resp.service.ts
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { ERoles } from 'src/common/enums/ERoles.enum';
 
 @Injectable()
 export class EstadisticasRespService {
@@ -10,7 +11,7 @@ export class EstadisticasRespService {
    * Helper para obtener el área del responsable
    */
   private async getAreaResponsable(userId: string, userRoles: string[]) {
-    if (userRoles.includes('ADMIN')) {
+    if (userRoles.includes(ERoles.ADMIN)) {
       return null; // Admin ve todo
     }
 
@@ -190,7 +191,7 @@ export class EstadisticasRespService {
         activo: true,
         roles: {
           some: {
-            rol: { codigo: 'TRAB' },
+            rol: { codigo: ERoles.TRAB },
           },
         },
       },
@@ -418,7 +419,8 @@ export class EstadisticasRespService {
     // Top 5 por velocidad (menor tiempo promedio)
     const topVelocidad = [...estadisticas.trabajadores]
       .sort(
-        (a, b) => a.promedio_tiempo_respuesta_horas - b.promedio_tiempo_respuesta_horas,
+        (a, b) =>
+          a.promedio_tiempo_respuesta_horas - b.promedio_tiempo_respuesta_horas,
       )
       .slice(0, 5);
 

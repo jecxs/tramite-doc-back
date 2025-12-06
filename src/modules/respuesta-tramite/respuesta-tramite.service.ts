@@ -8,6 +8,7 @@ import {
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateRespuestaTramiteDto } from './dto/create-respuesta-tramite.dto';
 import { NotificacionesService } from '../notificaciones/notificaciones.service';
+import { ERoles } from 'src/common/enums/ERoles.enum';
 
 @Injectable()
 export class RespuestaTramiteService {
@@ -189,7 +190,7 @@ export class RespuestaTramiteService {
 
     // Verificar permisos: ADMIN, remitente o receptor
     const tieneAcceso =
-      userRoles.includes('ADMIN') ||
+      userRoles.includes(ERoles.ADMIN) ||
       tramite.id_remitente === userId ||
       tramite.id_receptor === userId;
 

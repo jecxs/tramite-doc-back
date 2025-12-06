@@ -12,6 +12,7 @@ import { FilterTramiteDto } from './dto/filter-tramite.dto';
 import { NotificacionesService } from '../notificaciones/notificaciones.service';
 import { CreateTramiteBulkDto } from './dto/create-tramite-bulk.dto';
 import { CreateTramiteAutoLoteDto } from './dto/create-tramite-auto-lote.dto';
+import { ERoles } from 'src/common/enums/ERoles.enum';
 
 @Injectable()
 export class TramitesService {
@@ -67,7 +68,9 @@ export class TramitesService {
     }
 
     // Verificar que el receptor sea un trabajador (tiene rol TRAB)
-    const esTrabajador = receptor.roles.some((ur) => ur.rol.codigo === 'TRAB');
+    const esTrabajador = receptor.roles.some(
+      (ur) => ur.rol.codigo === ERoles.TRAB,
+    );
     if (!esTrabajador) {
       throw new BadRequestException(
         'El receptor debe ser un trabajador (rol TRAB)',
@@ -186,9 +189,9 @@ export class TramitesService {
     const where: any = {};
 
     // Aplicar filtros de permisos según rol
-    if (userRoles.includes('ADMIN')) {
+    if (userRoles.includes(ERoles.ADMIN)) {
       // ADMIN ve todo, no aplicar filtro adicional
-    } else if (userRoles.includes('RESP')) {
+    } else if (userRoles.includes(ERoles.RESP)) {
       // RESP ve trámites donde es remitente o de su área
       const usuario = await this.prisma.usuario.findUnique({
         where: { id_usuario: userId },
@@ -198,7 +201,7 @@ export class TramitesService {
         { id_remitente: userId }, // Enviados por él
         { id_area_remitente: usuario?.id_area }, // De su área
       ];
-    } else if (userRoles.includes('TRAB')) {
+    } else if (userRoles.includes(ERoles.TRAB)) {
       // TRAB solo ve trámites donde es receptor
       where.id_receptor = userId;
     }
@@ -329,7 +332,7 @@ export class TramitesService {
           isNot: null, // Tiene respuesta
         };
       } else {
-        where.respuesta = null // No tiene respuesta
+        where.respuesta = null; // No tiene respuesta
       }
     }
 
@@ -547,7 +550,7 @@ export class TramitesService {
 
     // Verificar permisos
     const tieneAcceso =
-      userRoles.includes('ADMIN') ||
+      userRoles.includes(ERoles.ADMIN) ||
       tramite.id_remitente === userId ||
       tramite.id_receptor === userId;
 
@@ -917,7 +920,7 @@ export class TramitesService {
 
     // Verificar permisos
     const puedeAnular =
-      userRoles.includes('ADMIN') || tramite.id_remitente === userId;
+      userRoles.includes(ERoles.ADMIN) || tramite.id_remitente === userId;
 
     if (!puedeAnular) {
       throw new ForbiddenException(
@@ -975,8 +978,8 @@ export class TramitesService {
     let where: any = {};
 
     // Filtrar por permisos si no es ADMIN
-    if (userId && userRoles && !userRoles.includes('ADMIN')) {
-      if (userRoles.includes('RESP')) {
+    if (userId && userRoles && !userRoles.includes(ERoles.ADMIN)) {
+      if (userRoles.includes(ERoles.RESP)) {
         const usuario = await this.prisma.usuario.findUnique({
           where: { id_usuario: userId },
         });
@@ -984,7 +987,7 @@ export class TramitesService {
           { id_remitente: userId },
           { id_area_remitente: usuario?.id_area },
         ];
-      } else if (userRoles.includes('TRAB')) {
+      } else if (userRoles.includes(ERoles.TRAB)) {
         where.id_receptor = userId;
         where.NOT = {
           reenvios: {
@@ -1085,7 +1088,7 @@ export class TramitesService {
 
     // Validar que todos sean trabajadores
     const todosEsTrabajadores = receptores.every((r) =>
-      r.roles.some((ur) => ur.rol.codigo === 'TRAB'),
+      r.roles.some((ur) => ur.rol.codigo === ERoles.TRAB),
     );
 
     if (!todosEsTrabajadores) {
@@ -1237,7 +1240,8 @@ export class TramitesService {
           nombre_archivo: nombreArchivo,
           dni: dniExtraido,
           encontrado: false,
-          error: 'El nombre del archivo no inicia con un DNI válido (8 dígitos)',
+          error:
+            'El nombre del archivo no inicia con un DNI válido (8 dígitos)',
         });
         continue;
       }
@@ -1267,7 +1271,7 @@ export class TramitesService {
 
       // Verificar que sea trabajador (rol TRAB)
       const esTrabajador = trabajador.roles.some(
-        (ur) => ur.rol.codigo === 'TRAB',
+        (ur) => ur.rol.codigo === ERoles.TRAB,
       );
 
       if (!esTrabajador) {
@@ -1329,7 +1333,9 @@ export class TramitesService {
     }
 
     // Verificar que todos los documentos existen
-    const idsDocumentos = createAutoLoteDto.documentos.map((d) => d.id_documento);
+    const idsDocumentos = createAutoLoteDto.documentos.map(
+      (d) => d.id_documento,
+    );
     const documentos = await this.prisma.documento.findMany({
       where: {
         id_documento: { in: idsDocumentos },
@@ -1364,7 +1370,7 @@ export class TramitesService {
 
     // Validar que todos sean trabajadores
     const todosEsTrabajadores = usuarios.every((u) =>
-      u.roles.some((ur) => ur.rol.codigo === 'TRAB'),
+      u.roles.some((ur) => ur.rol.codigo === ERoles.TRAB),
     );
 
     if (!todosEsTrabajadores) {
@@ -1486,10 +1492,7 @@ export class TramitesService {
     tipoDocumento: string,
     nombreTrabajador: string,
   ): { asunto: string; mensaje: string } {
-    const templates: Record<
-      string,
-      { asunto: string; mensaje: string }
-    > = {
+    const templates: Record<string, { asunto: string; mensaje: string }> = {
       CONTRATO: {
         asunto: `Contrato Laboral - ${nombreTrabajador}`,
         mensaje: `Estimado/a ${nombreTrabajador}, se le envía su contrato laboral para revisión y firma electrónica.`,

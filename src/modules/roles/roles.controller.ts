@@ -17,6 +17,7 @@ import { UpdateRolDto } from './dto/update-rol.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
+import { ERoles } from 'src/common/enums/ERoles.enum';
 
 @Controller('roles')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -29,7 +30,7 @@ export class RolesController {
    * Acceso: Solo ADMIN
    */
   @Post()
-  @Roles('ADMIN')
+  @Roles(ERoles.ADMIN)
   create(@Body() createRolDto: CreateRolDto) {
     return this.rolesService.create(createRolDto);
   }
@@ -40,7 +41,7 @@ export class RolesController {
    * Acceso: ADMIN, RESP (todos pueden ver los roles)
    */
   @Get()
-  @Roles('ADMIN', 'RESP')
+  @Roles(ERoles.ADMIN, ERoles.RESP)
   findAll(@Query('includeInactive', ParseBoolPipe) includeInactive?: boolean) {
     return this.rolesService.findAll(includeInactive);
   }
@@ -51,7 +52,7 @@ export class RolesController {
    * Acceso: ADMIN, RESP
    */
   @Get(':id')
-  @Roles('ADMIN', 'RESP')
+  @Roles(ERoles.ADMIN, ERoles.RESP)
   findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.rolesService.findOne(id);
   }
@@ -62,7 +63,7 @@ export class RolesController {
    * Acceso: Solo ADMIN
    */
   @Get(':id/users')
-  @Roles('ADMIN')
+  @Roles(ERoles.ADMIN)
   getUsersByRole(@Param('id', ParseUUIDPipe) id: string) {
     return this.rolesService.getUsersByRole(id);
   }
@@ -73,7 +74,7 @@ export class RolesController {
    * Acceso: ADMIN, RESP
    */
   @Get('codigo/:codigo')
-  @Roles('ADMIN', 'RESP')
+  @Roles(ERoles.ADMIN, ERoles.RESP)
   findByCodigo(@Param('codigo') codigo: string) {
     return this.rolesService.findByCodigo(codigo);
   }
@@ -84,7 +85,7 @@ export class RolesController {
    * Acceso: Solo ADMIN
    */
   @Patch(':id')
-  @Roles('ADMIN')
+  @Roles(ERoles.ADMIN)
   update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() updateRolDto: UpdateRolDto,
@@ -98,7 +99,7 @@ export class RolesController {
    * Acceso: Solo ADMIN
    */
   @Delete(':id/deactivate')
-  @Roles('ADMIN')
+  @Roles(ERoles.ADMIN)
   deactivate(@Param('id', ParseUUIDPipe) id: string) {
     return this.rolesService.deactivate(id);
   }
@@ -109,7 +110,7 @@ export class RolesController {
    * Acceso: Solo ADMIN
    */
   @Patch(':id/activate')
-  @Roles('ADMIN')
+  @Roles(ERoles.ADMIN)
   activate(@Param('id', ParseUUIDPipe) id: string) {
     return this.rolesService.activate(id);
   }
@@ -120,7 +121,7 @@ export class RolesController {
    * Acceso: Solo ADMIN
    */
   @Delete(':id')
-  @Roles('ADMIN')
+  @Roles(ERoles.ADMIN)
   remove(@Param('id', ParseUUIDPipe) id: string) {
     return this.rolesService.remove(id);
   }

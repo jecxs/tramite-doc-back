@@ -15,6 +15,7 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { ERoles } from 'src/common/enums/ERoles.enum';
 
 @Controller('observaciones')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -27,7 +28,7 @@ export class ObservacionesController {
    * Acceso: TRAB (solo el receptor del trámite)
    */
   @Post('tramite/:id')
-  @Roles('TRAB')
+  @Roles(ERoles.TRAB)
   create(
     @Param('id', ParseUUIDPipe) idTramite: string,
     @Body() createObservacionDto: CreateObservacionDto,
@@ -46,7 +47,7 @@ export class ObservacionesController {
    * Acceso: ADMIN, RESP (remitente), TRAB (receptor)
    */
   @Get('tramite/:id')
-  @Roles('ADMIN', 'RESP', 'TRAB')
+  @Roles(ERoles.ADMIN, ERoles.RESP, ERoles.TRAB)
   findByTramite(
     @Param('id', ParseUUIDPipe) idTramite: string,
     @CurrentUser('id_usuario') userId: string,
@@ -65,7 +66,7 @@ export class ObservacionesController {
    * Acceso: ADMIN, RESP (sus trámites), TRAB (sus observaciones)
    */
   @Get('pendientes')
-  @Roles('ADMIN', 'RESP', 'TRAB')
+  @Roles(ERoles.ADMIN, ERoles.RESP, ERoles.TRAB)
   findPendientes(
     @CurrentUser('id_usuario') userId: string,
     @CurrentUser('roles') userRoles: string[],
@@ -79,7 +80,7 @@ export class ObservacionesController {
    * Acceso: ADMIN, RESP, TRAB (filtrado según permisos)
    */
   @Get('statistics')
-  @Roles('ADMIN', 'RESP', 'TRAB')
+  @Roles(ERoles.ADMIN, ERoles.RESP, ERoles.TRAB)
   getStatistics(
     @CurrentUser('id_usuario') userId: string,
     @CurrentUser('roles') userRoles: string[],
@@ -93,7 +94,7 @@ export class ObservacionesController {
    * Acceso: ADMIN, RESP (remitente), TRAB (receptor)
    */
   @Get(':id')
-  @Roles('ADMIN', 'RESP', 'TRAB')
+  @Roles(ERoles.ADMIN, ERoles.RESP, ERoles.TRAB)
   findOne(
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentUser('id_usuario') userId: string,
@@ -108,7 +109,7 @@ export class ObservacionesController {
    * Acceso: RESP (solo el remitente del trámite)
    */
   @Patch(':id/responder')
-  @Roles('RESP', 'ADMIN')
+  @Roles(ERoles.RESP, ERoles.ADMIN)
   responder(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() responderDto: ResponderObservacionDto,

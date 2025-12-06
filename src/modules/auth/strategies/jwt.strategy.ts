@@ -4,6 +4,7 @@ import { ExtractJwt, Strategy } from 'passport-jwt';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { JwtPayload } from '../../../common/interfaces/jwt-payload.interface';
 import { config } from 'src/config';
+import { ERoles } from 'src/common/enums/ERoles.enum';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
@@ -33,7 +34,13 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       throw new UnauthorizedException('Usuario no autorizado o inactivo');
     }
 
-    // Retornamos el usuario completo que se adjuntará a request.user
+    // Normalizar roles a tipo ERoles[]
+    const roles = usuario.roles
+      .map((ur) => ur.rol.codigo)
+      .filter((codigo): codigo is ERoles =>
+        Object.values(ERoles).includes(codigo as ERoles),
+      );
+
     return {
       id_usuario: usuario.id_usuario,
       dni: usuario.dni,
@@ -42,7 +49,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       correo: usuario.correo,
       id_area: usuario.id_area,
       area: usuario.area,
-      roles: usuario.roles.map((ur) => ur.rol.codigo),
+      roles,
     };
   }
 }

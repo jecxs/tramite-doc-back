@@ -9,6 +9,7 @@ import { CreateObservacionDto } from './dto/create-observacion.dto';
 import { ResponderObservacionDto } from './dto/responder-observacion.dto';
 import { NotificacionesGateway } from './notificaciones.gateway';
 import { NotificacionesService } from '../notificaciones/notificaciones.service';
+import { ERoles } from 'src/common/enums/ERoles.enum';
 
 @Injectable()
 export class ObservacionesService {
@@ -183,7 +184,7 @@ export class ObservacionesService {
 
     // Verificar permisos - ADMIN, remitente o receptor
     const tieneAcceso =
-      userRoles.includes('ADMIN') ||
+      userRoles.includes(ERoles.ADMIN) ||
       tramite.id_remitente === userId ||
       tramite.id_receptor === userId;
 
@@ -258,7 +259,7 @@ export class ObservacionesService {
 
     // Verificar permisos
     const tieneAcceso =
-      userRoles.includes('ADMIN') ||
+      userRoles.includes(ERoles.ADMIN) ||
       observacion.tramite.id_remitente === userId ||
       observacion.tramite.id_receptor === userId;
 
@@ -531,8 +532,8 @@ export class ObservacionesService {
     let where: any = {};
 
     // Filtrar por permisos si no es ADMIN
-    if (userId && userRoles && !userRoles.includes('ADMIN')) {
-      if (userRoles.includes('RESP')) {
+    if (userId && userRoles && !userRoles.includes(ERoles.ADMIN)) {
+      if (userRoles.includes(ERoles.RESP)) {
         // RESP ve observaciones de trámites enviados por él
         const tramites = await this.prisma.tramite.findMany({
           where: { id_remitente: userId },
@@ -541,7 +542,7 @@ export class ObservacionesService {
         where.id_tramite = {
           in: tramites.map((t) => t.id_tramite),
         };
-      } else if (userRoles.includes('TRAB')) {
+      } else if (userRoles.includes(ERoles.TRAB)) {
         // TRAB ve observaciones que él creó
         where.creado_por = userId;
       }
@@ -576,8 +577,8 @@ export class ObservacionesService {
     let where: any = { resuelta: false };
 
     // Filtrar según permisos
-    if (!userRoles.includes('ADMIN')) {
-      if (userRoles.includes('RESP')) {
+    if (!userRoles.includes(ERoles.ADMIN)) {
+      if (userRoles.includes(ERoles.RESP)) {
         // RESP ve observaciones de sus trámites
         const tramites = await this.prisma.tramite.findMany({
           where: { id_remitente: userId },
@@ -586,7 +587,7 @@ export class ObservacionesService {
         where.id_tramite = {
           in: tramites.map((t) => t.id_tramite),
         };
-      } else if (userRoles.includes('TRAB')) {
+      } else if (userRoles.includes(ERoles.TRAB)) {
         // TRAB ve sus propias observaciones
         where.creado_por = userId;
       }

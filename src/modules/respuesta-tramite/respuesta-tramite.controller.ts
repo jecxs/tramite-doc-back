@@ -17,6 +17,7 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { ERoles } from 'src/common/enums/ERoles.enum';
 
 @Controller('respuesta-tramite')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -31,7 +32,7 @@ export class RespuestaTramiteController {
    * Acceso: Solo TRAB (receptor del trámite)
    */
   @Post(':idTramite')
-  @Roles('TRAB')
+  @Roles(ERoles.TRAB)
   async crearRespuesta(
     @Param('idTramite', ParseUUIDPipe) idTramite: string,
     @Body() createRespuestaDto: CreateRespuestaTramiteDto,
@@ -63,7 +64,7 @@ export class RespuestaTramiteController {
    * Acceso: ADMIN, RESP (remitente), TRAB (receptor)
    */
   @Get(':idTramite')
-  @Roles('ADMIN', 'RESP', 'TRAB')
+  @Roles(ERoles.ADMIN, ERoles.RESP, ERoles.TRAB)
   async obtenerRespuesta(
     @Param('idTramite', ParseUUIDPipe) idTramite: string,
     @CurrentUser('id_usuario') userId: string,
@@ -82,7 +83,7 @@ export class RespuestaTramiteController {
    * Acceso: Solo ADMIN y RESP
    */
   @Get('estadisticas/general')
-  @Roles('ADMIN', 'RESP')
+  @Roles(ERoles.ADMIN, ERoles.RESP)
   async obtenerEstadisticas(
     @Query('id_remitente') idRemitente?: string,
     @Query('id_area') idArea?: string,

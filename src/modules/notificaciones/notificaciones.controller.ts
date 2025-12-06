@@ -14,6 +14,7 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { ERoles } from 'src/common/enums/ERoles.enum';
 
 @Controller('notificaciones')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -26,7 +27,7 @@ export class NotificacionesController {
    * Acceso: Todos los usuarios autenticados
    */
   @Get()
-  @Roles('ADMIN', 'RESP', 'TRAB')
+  @Roles(ERoles.ADMIN, ERoles.RESP, ERoles.TRAB)
   findAll(
     @CurrentUser('id_usuario') userId: string,
     @Query() filterDto: FilterNotificacionDto,
@@ -40,7 +41,7 @@ export class NotificacionesController {
    * Acceso: Todos los usuarios autenticados
    */
   @Get('unread')
-  @Roles('ADMIN', 'RESP', 'TRAB')
+  @Roles(ERoles.ADMIN, ERoles.RESP, ERoles.TRAB)
   findUnread(@CurrentUser('id_usuario') userId: string) {
     return this.notificacionesService.findUnread(userId);
   }
@@ -51,7 +52,7 @@ export class NotificacionesController {
    * Acceso: Todos los usuarios autenticados
    */
   @Get('unread/count')
-  @Roles('ADMIN', 'RESP', 'TRAB')
+  @Roles(ERoles.ADMIN, ERoles.RESP, ERoles.TRAB)
   getUnreadCount(@CurrentUser('id_usuario') userId: string) {
     return this.notificacionesService.getUnreadCount(userId);
   }
@@ -62,7 +63,7 @@ export class NotificacionesController {
    * Acceso: Todos los usuarios autenticados
    */
   @Get('statistics')
-  @Roles('ADMIN', 'RESP', 'TRAB')
+  @Roles(ERoles.ADMIN, ERoles.RESP, ERoles.TRAB)
   getStatistics(@CurrentUser('id_usuario') userId: string) {
     return this.notificacionesService.getStatistics(userId);
   }
@@ -73,7 +74,7 @@ export class NotificacionesController {
    * Acceso: Todos los usuarios autenticados (solo pueden ver las suyas)
    */
   @Get(':id')
-  @Roles('ADMIN', 'RESP', 'TRAB')
+  @Roles(ERoles.ADMIN, ERoles.RESP, ERoles.TRAB)
   findOne(
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentUser('id_usuario') userId: string,
@@ -87,7 +88,7 @@ export class NotificacionesController {
    * Acceso: Todos los usuarios autenticados (solo pueden marcar las suyas)
    */
   @Patch(':id/read')
-  @Roles('ADMIN', 'RESP', 'TRAB')
+  @Roles(ERoles.ADMIN, ERoles.RESP, ERoles.TRAB)
   markAsRead(
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentUser('id_usuario') userId: string,
@@ -101,7 +102,7 @@ export class NotificacionesController {
    * Acceso: Todos los usuarios autenticados
    */
   @Patch('read-all')
-  @Roles('ADMIN', 'RESP', 'TRAB')
+  @Roles(ERoles.ADMIN, ERoles.RESP, ERoles.TRAB)
   markAllAsRead(@CurrentUser('id_usuario') userId: string) {
     return this.notificacionesService.markAllAsRead(userId);
   }
@@ -112,7 +113,7 @@ export class NotificacionesController {
    * Acceso: Solo ADMIN
    */
   @Delete('cleanup')
-  @Roles('ADMIN')
+  @Roles(ERoles.ADMIN)
   deleteOldNotifications() {
     return this.notificacionesService.deleteOldNotifications();
   }

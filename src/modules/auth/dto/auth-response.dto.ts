@@ -1,3 +1,5 @@
+import { ERoles } from 'src/common/enums/ERoles.enum';
+
 export class AuthResponseDto {
   access_token: string;
   token_type: string;
@@ -8,7 +10,7 @@ export class AuthResponseDto {
     nombres: string;
     apellidos: string;
     correo: string;
-    roles: string[];
+    roles: ERoles[];
     area: {
       id_area: string;
       nombre: string;

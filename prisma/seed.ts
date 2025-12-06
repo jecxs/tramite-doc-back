@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
+import { ERoles } from 'src/common/enums/ERoles.enum';
 
 const prisma = new PrismaClient();
 
@@ -24,21 +25,21 @@ async function main() {
   // 2. Crear Roles
   const rolAdmin = await prisma.rol.create({
     data: {
-      codigo: 'ADMIN',
+      codigo: ERoles.ADMIN,
       nombre: 'Administrador',
     },
   });
 
   const rolResponsable = await prisma.rol.create({
     data: {
-      codigo: 'RESP',
+      codigo: ERoles.RESP,
       nombre: 'Responsable de Área',
     },
   });
 
   const rolTrabajador = await prisma.rol.create({
     data: {
-      codigo: 'TRAB',
+      codigo: ERoles.TRAB,
       nombre: 'Trabajador',
     },
   });

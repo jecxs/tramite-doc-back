@@ -7,6 +7,7 @@ import {
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateFirmaElectronicaDto } from './dto/create-firma-electronica.dto';
 import { NotificacionesService } from '../notificaciones/notificaciones.service';
+import { ERoles } from 'src/common/enums/ERoles.enum';
 
 @Injectable()
 export class FirmaElectronicaService {
@@ -178,7 +179,7 @@ export class FirmaElectronicaService {
 
     // Verificar permisos - solo ADMIN, remitente o receptor pueden ver la firma
     const tieneAcceso =
-      userRoles.includes('ADMIN') ||
+      userRoles.includes(ERoles.ADMIN) ||
       tramite.id_remitente === userId ||
       tramite.id_receptor === userId;
 

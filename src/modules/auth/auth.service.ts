@@ -5,6 +5,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { LoginDto } from './dto/login.dto';
 import { AuthResponseDto } from './dto/auth-response.dto';
 import { JwtPayload } from '../../common/interfaces/jwt-payload.interface';
+import { ERoles } from 'src/common/enums/ERoles.enum';
 
 @Injectable()
 export class AuthService {
@@ -53,7 +54,7 @@ export class AuthService {
       sub: usuario.id_usuario,
       correo: usuario.correo,
       dni: usuario.dni,
-      roles: roles,
+      roles: roles as ERoles[],
       id_area: usuario.id_area,
       nombre_completo: `${usuario.nombres} ${usuario.apellidos}`,
     };
@@ -71,7 +72,7 @@ export class AuthService {
         nombres: usuario.nombres,
         apellidos: usuario.apellidos,
         correo: usuario.correo,
-        roles: roles,
+        roles: roles as ERoles[],
         area: {
           id_area: usuario.area.id_area,
           nombre: usuario.area.nombre,

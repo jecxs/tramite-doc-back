@@ -1,15 +1,11 @@
 // src/modules/tramite/estadisticas-resp.controller.ts
-import {
-  Controller,
-  Get,
-  UseGuards,
-  Query,
-} from '@nestjs/common';
+import { Controller, Get, UseGuards, Query } from '@nestjs/common';
 import { EstadisticasRespService } from './estadisticas-resp.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { ERoles } from 'src/common/enums/ERoles.enum';
 
 @Controller('estadisticas/responsable')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -24,7 +20,7 @@ export class EstadisticasRespController {
    * Acceso: RESP, ADMIN
    */
   @Get('general')
-  @Roles('RESP', 'ADMIN')
+  @Roles(ERoles.RESP, ERoles.ADMIN)
   async getEstadisticasGenerales(
     @CurrentUser('id_usuario') userId: string,
     @CurrentUser('roles') userRoles: string[],
@@ -41,7 +37,7 @@ export class EstadisticasRespController {
    * Acceso: RESP, ADMIN
    */
   @Get('por-periodo')
-  @Roles('RESP', 'ADMIN')
+  @Roles(ERoles.RESP, ERoles.ADMIN)
   async getEstadisticasPorPeriodo(
     @CurrentUser('id_usuario') userId: string,
     @CurrentUser('roles') userRoles: string[],
@@ -60,7 +56,7 @@ export class EstadisticasRespController {
    * Acceso: RESP, ADMIN
    */
   @Get('por-trabajador')
-  @Roles('RESP', 'ADMIN')
+  @Roles(ERoles.RESP, ERoles.ADMIN)
   async getEstadisticasPorTrabajador(
     @CurrentUser('id_usuario') userId: string,
     @CurrentUser('roles') userRoles: string[],
@@ -77,7 +73,7 @@ export class EstadisticasRespController {
    * Acceso: RESP, ADMIN
    */
   @Get('tiempos-respuesta')
-  @Roles('RESP', 'ADMIN')
+  @Roles(ERoles.RESP, ERoles.ADMIN)
   async getTiemposRespuesta(
     @CurrentUser('id_usuario') userId: string,
     @CurrentUser('roles') userRoles: string[],
@@ -91,7 +87,7 @@ export class EstadisticasRespController {
    * Acceso: RESP, ADMIN
    */
   @Get('tipos-documentos')
-  @Roles('RESP', 'ADMIN')
+  @Roles(ERoles.RESP, ERoles.ADMIN)
   async getEstadisticasTiposDocumentos(
     @CurrentUser('id_usuario') userId: string,
     @CurrentUser('roles') userRoles: string[],
@@ -108,15 +104,12 @@ export class EstadisticasRespController {
    * Acceso: RESP, ADMIN
    */
   @Get('ranking-eficiencia')
-  @Roles('RESP', 'ADMIN')
+  @Roles(ERoles.RESP, ERoles.ADMIN)
   async getRankingEficiencia(
     @CurrentUser('id_usuario') userId: string,
     @CurrentUser('roles') userRoles: string[],
   ) {
-    return this.estadisticasRespService.getRankingEficiencia(
-      userId,
-      userRoles,
-    );
+    return this.estadisticasRespService.getRankingEficiencia(userId, userRoles);
   }
 
   /**
@@ -125,7 +118,7 @@ export class EstadisticasRespController {
    * Acceso: RESP, ADMIN
    */
   @Get('observaciones')
-  @Roles('RESP', 'ADMIN')
+  @Roles(ERoles.RESP, ERoles.ADMIN)
   async getEstadisticasObservaciones(
     @CurrentUser('id_usuario') userId: string,
     @CurrentUser('roles') userRoles: string[],
@@ -142,14 +135,11 @@ export class EstadisticasRespController {
    * Acceso: RESP, ADMIN
    */
   @Get('actividad-reciente')
-  @Roles('RESP', 'ADMIN')
+  @Roles(ERoles.RESP, ERoles.ADMIN)
   async getActividadReciente(
     @CurrentUser('id_usuario') userId: string,
     @CurrentUser('roles') userRoles: string[],
   ) {
-    return this.estadisticasRespService.getActividadReciente(
-      userId,
-      userRoles,
-    );
+    return this.estadisticasRespService.getActividadReciente(userId, userRoles);
   }
 }
