@@ -1,6 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
-import { ERoles } from 'src/common/enums/ERoles.enum';
+import { ERoles } from '../src/common/enums/ERoles.enum';
 
 const prisma = new PrismaClient();
 
