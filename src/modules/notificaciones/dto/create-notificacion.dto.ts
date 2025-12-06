@@ -6,6 +6,7 @@ import {
   IsOptional,
   IsIn,
 } from 'class-validator';
+import { ETypeDocument } from 'src/common/enums/ETypeDocument.enum';
 
 export class CreateNotificacionDto {
   @IsUUID('4', { message: 'El ID del usuario debe ser un UUID válido' })
@@ -20,19 +21,19 @@ export class CreateNotificacionDto {
   @IsNotEmpty({ message: 'El tipo es obligatorio' })
   @IsIn(
     [
-      'TRAMITE_RECIBIDO',
-      'TRAMITE_FIRMADO',
-      'TRAMITE_ANULADO',
-      'OBSERVACION_CREADA',
-      'OBSERVACION_RESUELTA',
-      'DOCUMENTO_REQUIERE_FIRMA',
-      'TRAMITE_REENVIADO',
+      ETypeDocument.TRAMITE_RECIBIDO,
+      ETypeDocument.TRAMITE_FIRMADO,
+      ETypeDocument.TRAMITE_ANULADO,
+      ETypeDocument.OBSERVACION_CREADA,
+      ETypeDocument.OBSERVACION_RESUELTA,
+      ETypeDocument.DOCUMENTO_REQUIERE_FIRMA,
+      ETypeDocument.TRAMITE_REENVIADO,
     ],
     {
       message: 'Tipo de notificación inválido',
     },
   )
-  tipo: string;
+  tipo: ETypeDocument;
 
   @IsString({ message: 'El título debe ser un texto' })
   @IsNotEmpty({ message: 'El título es obligatorio' })

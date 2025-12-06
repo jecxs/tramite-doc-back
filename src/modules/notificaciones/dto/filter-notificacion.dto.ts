@@ -1,5 +1,6 @@
 import { IsOptional, IsIn } from 'class-validator';
 import { Transform } from 'class-transformer';
+import { ETypeDocument } from 'src/common/enums/ETypeDocument.enum';
 
 export class FilterNotificacionDto {
   @IsOptional()
@@ -9,17 +10,17 @@ export class FilterNotificacionDto {
   @IsOptional()
   @IsIn(
     [
-      'TRAMITE_RECIBIDO',
-      'TRAMITE_FIRMADO',
-      'TRAMITE_ANULADO',
-      'OBSERVACION_CREADA',
-      'OBSERVACION_RESUELTA',
-      'DOCUMENTO_REQUIERE_FIRMA',
-      'TRAMITE_REENVIADO',
+      ETypeDocument.TRAMITE_RECIBIDO,
+      ETypeDocument.TRAMITE_FIRMADO,
+      ETypeDocument.TRAMITE_ANULADO,
+      ETypeDocument.OBSERVACION_CREADA,
+      ETypeDocument.OBSERVACION_RESUELTA,
+      ETypeDocument.DOCUMENTO_REQUIERE_FIRMA,
+      ETypeDocument.TRAMITE_REENVIADO,
     ],
     {
       message: 'Tipo de notificación inválido',
     },
   )
-  tipo?: string; // Filtrar por tipo
+  tipo?: ETypeDocument; // Filtrar por tipo
 }

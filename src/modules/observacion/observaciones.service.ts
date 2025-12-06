@@ -11,6 +11,7 @@ import { NotificacionesGateway } from './notificaciones.gateway';
 import { NotificacionesService } from '../notificaciones/notificaciones.service';
 import { ERoles } from 'src/common/enums/ERoles.enum';
 import { ETramitStatus } from 'src/common/enums/ETramitStatus.enum';
+import { ETypeDocument } from 'src/common/enums/ETypeDocument.enum';
 
 @Injectable()
 export class ObservacionesService {
@@ -366,7 +367,7 @@ export class ObservacionesService {
       await tx.historialTramite.create({
         data: {
           id_tramite: observacion.tramite.id_tramite,
-          accion: 'OBSERVACION_RESUELTA',
+          accion: ETypeDocument.OBSERVACION_RESUELTA,
           detalle: `Observación resuelta: ${observacion.tipo} - Respuesta: ${responderDto.respuesta}`,
           estado_anterior: estadoAnterior,
           estado_nuevo: estadoAnterior, // Mantiene el estado

@@ -7,6 +7,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { CreateNotificacionDto } from './dto/create-notificacion.dto';
 import { FilterNotificacionDto } from './dto/filter-notificacion.dto';
 import { NotificacionesGateway } from '../observacion/notificaciones.gateway';
+import { ETypeDocument } from 'src/common/enums/ETypeDocument.enum';
 
 @Injectable()
 export class NotificacionesService {
@@ -90,7 +91,7 @@ export class NotificacionesService {
     return this.create({
       id_usuario: idReceptor,
       id_tramite: idTramite,
-      tipo: 'TRAMITE_RECIBIDO',
+      tipo: ETypeDocument.TRAMITE_RECIBIDO,
       titulo: 'Nuevo documento recibido',
       mensaje: `${nombreRemitente} le ha enviado un documento: ${asuntoTramite}`,
     });
@@ -108,7 +109,7 @@ export class NotificacionesService {
     return this.create({
       id_usuario: idRemitente,
       id_tramite: idTramite,
-      tipo: 'TRAMITE_FIRMADO',
+      tipo: ETypeDocument.TRAMITE_FIRMADO,
       titulo: 'Documento firmado',
       mensaje: `${nombreTrabajador} ha firmado el documento: ${asuntoTramite}`,
     });
@@ -126,7 +127,7 @@ export class NotificacionesService {
     return this.create({
       id_usuario: idReceptor,
       id_tramite: idTramite,
-      tipo: 'TRAMITE_ANULADO',
+      tipo: ETypeDocument.TRAMITE_ANULADO,
       titulo: 'Trámite anulado',
       mensaje: `El trámite "${asuntoTramite}" ha sido anulado. Motivo: ${motivo}`,
     });
@@ -144,7 +145,7 @@ export class NotificacionesService {
     return this.create({
       id_usuario: idRemitente,
       id_tramite: idTramite,
-      tipo: 'OBSERVACION_CREADA',
+      tipo: ETypeDocument.OBSERVACION_CREADA,
       titulo: 'Nueva observación',
       mensaje: `${nombreTrabajador} ha creado una observación de tipo ${tipoObservacion}`,
     });
@@ -161,7 +162,7 @@ export class NotificacionesService {
     return this.create({
       id_usuario: idTrabajador,
       id_tramite: idTramite,
-      tipo: 'OBSERVACION_RESUELTA',
+      tipo: ETypeDocument.OBSERVACION_RESUELTA,
       titulo: 'Observación resuelta',
       mensaje: `${nombreResponsable} ha respondido a su observación`,
     });
@@ -178,7 +179,7 @@ export class NotificacionesService {
     return this.create({
       id_usuario: idReceptor,
       id_tramite: idTramite,
-      tipo: 'DOCUMENTO_REQUIERE_FIRMA',
+      tipo: ETypeDocument.DOCUMENTO_REQUIERE_FIRMA,
       titulo: 'Documento requiere firma',
       mensaje: `El documento "${asuntoTramite}" requiere su firma electrónica`,
     });
@@ -196,7 +197,7 @@ export class NotificacionesService {
     return this.create({
       id_usuario: idReceptor,
       id_tramite: idTramite,
-      tipo: 'TRAMITE_REENVIADO',
+      tipo: ETypeDocument.TRAMITE_REENVIADO,
       titulo: 'Documento actualizado',
       mensaje: `Se ha enviado una nueva versión (v${numeroVersion}) del documento: ${asuntoTramite}`,
     });
@@ -430,7 +431,7 @@ export class NotificacionesService {
     return this.create({
       id_usuario: idUsuario,
       id_tramite: idTramite,
-      tipo: 'RESPUESTA_RECIBIDA',
+      tipo: ETypeDocument.RESPUESTA_RECIBIDA,
       titulo,
       mensaje,
     });

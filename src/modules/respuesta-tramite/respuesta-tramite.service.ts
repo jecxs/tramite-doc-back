@@ -10,6 +10,7 @@ import { CreateRespuestaTramiteDto } from './dto/create-respuesta-tramite.dto';
 import { NotificacionesService } from '../notificaciones/notificaciones.service';
 import { ERoles } from 'src/common/enums/ERoles.enum';
 import { ETramitStatus } from 'src/common/enums/ETramitStatus.enum';
+import { ETypeDocument } from 'src/common/enums/ETypeDocument.enum';
 
 @Injectable()
 export class RespuestaTramiteService {
@@ -164,7 +165,7 @@ export class RespuestaTramiteService {
     await this.notificacionesService.create({
       id_usuario: tramite.remitente.id_usuario,
       id_tramite: idTramite,
-      tipo: 'RESPUESTA_RECIBIDA',
+      tipo: ETypeDocument.RESPUESTA_RECIBIDA,
       titulo: 'Confirmación de conformidad recibida',
       mensaje: `${tramite.receptor.nombres} ${tramite.receptor.apellidos} esta de acuerdo con "${tramite.asunto}"`,
     });
