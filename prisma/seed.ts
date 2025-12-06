@@ -7,41 +7,72 @@ const prisma = new PrismaClient();
 async function main() {
   console.log('Iniciando seed...');
 
-  // 1. Crear Áreas
-  const areaRRHH = await prisma.area.create({
-    data: {
-      nombre: 'Recursos Humanos',
-    },
+  const tablesOk = await Promise.all([
+    prisma.area
+      .count()
+      .then(() => true)
+      .catch(() => false),
+    prisma.rol
+      .count()
+      .then(() => true)
+      .catch(() => false),
+    prisma.usuario
+      .count()
+      .then(() => true)
+      .catch(() => false),
+    prisma.usuarioRol
+      .count()
+      .then(() => true)
+      .catch(() => false),
+    prisma.tipoDocumento
+      .count()
+      .then(() => true)
+      .catch(() => false),
+  ]);
+  if (!tablesOk.every(Boolean)) {
+    throw new Error(
+      'Tablas requeridas no existen. Ejecutar migraciones antes del seed.',
+    );
+  }
+
+  const already = await prisma.usuario.count({
+    where: { correo: 'admin@universidad.edu' },
+  });
+  if (already > 0) {
+    console.log('Seed ya aplicado, sin cambios');
+    return;
+  }
+
+  const areaRRHH = await prisma.area.upsert({
+    where: { nombre: 'Recursos Humanos' },
+    update: {},
+    create: { nombre: 'Recursos Humanos' },
   });
 
-  const areaTI = await prisma.area.create({
-    data: {
-      nombre: 'Tecnologías de la Información',
-    },
+  const areaTI = await prisma.area.upsert({
+    where: { nombre: 'Tecnologías de la Información' },
+    update: {},
+    create: { nombre: 'Tecnologías de la Información' },
   });
 
   console.log('Áreas creadas');
 
-  // 2. Crear Roles
-  const rolAdmin = await prisma.rol.create({
-    data: {
-      codigo: ERoles.ADMIN,
-      nombre: 'Administrador',
-    },
+  const rolAdmin = await prisma.rol.upsert({
+    where: { codigo: ERoles.ADMIN },
+    update: { nombre: 'Administrador' },
+    create: { codigo: ERoles.ADMIN, nombre: 'Administrador' },
   });
 
-  const rolResponsable = await prisma.rol.create({
-    data: {
-      codigo: ERoles.RESP,
-      nombre: 'Responsable de Área',
-    },
+  const rolResponsable = await prisma.rol.upsert({
+    where: { codigo: ERoles.RESP },
+    update: { nombre: 'Responsable de Área' },
+    create: { codigo: ERoles.RESP, nombre: 'Responsable de Área' },
   });
 
-  const rolTrabajador = await prisma.rol.create({
-    data: {
-      codigo: ERoles.TRAB,
-      nombre: 'Trabajador',
-    },
+  const rolTrabajador = await prisma.rol.upsert({
+    where: { codigo: ERoles.TRAB },
+    update: { nombre: 'Trabajador' },
+    create: { codigo: ERoles.TRAB, nombre: 'Trabajador' },
   });
 
   console.log('Roles creados');
@@ -49,8 +80,10 @@ async function main() {
   // 3. Crear Usuarios
   const passwordHash = await bcrypt.hash('password123', 10);
 
-  const admin = await prisma.usuario.create({
-    data: {
+  const admin = await prisma.usuario.upsert({
+    where: { correo: 'admin@universidad.edu' },
+    update: { password: passwordHash, id_area: areaRRHH.id_area },
+    create: {
       dni: '12345678',
       nombres: 'Juan',
       apellidos: 'Pérez Admin',
@@ -60,15 +93,21 @@ async function main() {
     },
   });
 
-  await prisma.usuarioRol.create({
-    data: {
-      id_usuario: admin.id_usuario,
-      id_rol: rolAdmin.id_rol,
+  await prisma.usuarioRol.upsert({
+    where: {
+      id_usuario_id_rol: {
+        id_usuario: admin.id_usuario,
+        id_rol: rolAdmin.id_rol,
+      },
     },
+    update: {},
+    create: { id_usuario: admin.id_usuario, id_rol: rolAdmin.id_rol },
   });
 
-  const responsable = await prisma.usuario.create({
-    data: {
+  const responsable = await prisma.usuario.upsert({
+    where: { correo: 'maria.garcia@universidad.edu' },
+    update: { password: passwordHash, id_area: areaRRHH.id_area },
+    create: {
       dni: '87654321',
       nombres: 'María',
       apellidos: 'García',
@@ -78,15 +117,24 @@ async function main() {
     },
   });
 
-  await prisma.usuarioRol.create({
-    data: {
+  await prisma.usuarioRol.upsert({
+    where: {
+      id_usuario_id_rol: {
+        id_usuario: responsable.id_usuario,
+        id_rol: rolResponsable.id_rol,
+      },
+    },
+    update: {},
+    create: {
       id_usuario: responsable.id_usuario,
       id_rol: rolResponsable.id_rol,
     },
   });
 
-  const trabajador = await prisma.usuario.create({
-    data: {
+  const trabajador = await prisma.usuario.upsert({
+    where: { correo: 'carlos.lopez@universidad.edu' },
+    update: { password: passwordHash, id_area: areaTI.id_area },
+    create: {
       dni: '11223344',
       nombres: 'Carlos',
       apellidos: 'López',
@@ -96,11 +144,15 @@ async function main() {
     },
   });
 
-  await prisma.usuarioRol.create({
-    data: {
-      id_usuario: trabajador.id_usuario,
-      id_rol: rolTrabajador.id_rol,
+  await prisma.usuarioRol.upsert({
+    where: {
+      id_usuario_id_rol: {
+        id_usuario: trabajador.id_usuario,
+        id_rol: rolTrabajador.id_rol,
+      },
     },
+    update: {},
+    create: { id_usuario: trabajador.id_usuario, id_rol: rolTrabajador.id_rol },
   });
 
   console.log('Usuarios creados');
@@ -130,6 +182,7 @@ async function main() {
         requiere_respuesta: true,
       },
     ],
+    skipDuplicates: true,
   });
 
   console.log('Tipos de documento creados');

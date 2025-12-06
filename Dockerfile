@@ -30,5 +30,4 @@ USER node
 
 EXPOSE 3000
 
-# Entry point correcto según estructura de dist
-CMD ["node", "dist/src/main.js"]
+CMD ["sh", "-lc", "npx prisma migrate deploy && node dist/prisma/seed.js && node dist/src/main.js"]
