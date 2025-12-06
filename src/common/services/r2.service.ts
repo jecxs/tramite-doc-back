@@ -17,7 +17,6 @@ export class R2Service {
   private readonly bucketName: string;
 
   constructor() {
-    // Validar que las variables de entorno estén configuradas
     if (
       !config.R2_ACCOUNT_ID ||
       !config.R2_ACCESS_KEY_ID ||

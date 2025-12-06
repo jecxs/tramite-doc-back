@@ -8,6 +8,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { CreateAreaDto } from './dto/create-area.dto';
 import { UpdateAreaDto } from './dto/update-area.dto';
 import { config } from 'src/config';
+import { ERoles } from 'src/common/enums/ERoles.enum';
 
 @Injectable()
 export class AreasService {
@@ -148,7 +149,7 @@ export class AreasService {
 
     // Buscar el rol RESP
     const rolResp = await this.prisma.rol.findUnique({
-      where: { codigo: 'RESP' },
+      where: { codigo: ERoles.RESP },
     });
 
     if (!rolResp) {
@@ -207,7 +208,7 @@ export class AreasService {
 
     // Buscar el rol TRAB
     const rolTrab = await this.prisma.rol.findUnique({
-      where: { codigo: 'TRAB' },
+      where: { codigo: ERoles.TRAB },
     });
 
     if (!rolTrab) {
@@ -302,40 +303,25 @@ export class AreasService {
   /**
    * Desactivar un área (no se puede si tiene usuarios activos)
    */
-  async deactivate(id: string) {
-    const area = await this.prisma.area.findUnique({
-      where: { id_area: id },
-      include: {
-        _count: {
-          select: {
-            usuarios: {
-              where: { activo: true },
-            },
-          },
-        },
-      },
-    });
-
-    if (!area) {
-      throw new NotFoundException(`Área con ID ${id} no encontrada`);
-    }
-
-    if (!area.activo) {
+  async desactivate(id: string) {
+    const area = await this.prisma.area.findUnique({ where: { id_area: id } });
+    if (!area) throw new NotFoundException(`Área con ID ${id} no encontrada`);
+    if (!area.activo)
       throw new BadRequestException('El área ya está desactivada');
-    }
 
-    if (area._count.usuarios > 0) {
+    const usuariosActivos = await this.prisma.usuario.count({
+      where: { id_area: id, activo: true },
+    });
+    if (usuariosActivos > 0) {
       throw new BadRequestException(
-        `No se puede desactivar el área porque tiene ${area._count.usuarios} usuario(s) activo(s)`,
+        `No se puede desactivar el área porque tiene ${usuariosActivos} usuario(s) activo(s)`,
       );
     }
 
-    const areaDesactivada = await this.prisma.area.update({
+    return this.prisma.area.update({
       where: { id_area: id },
       data: { activo: false },
     });
-
-    return areaDesactivada;
   }
 
   /**
@@ -410,33 +396,38 @@ export class AreasService {
       this.prisma.area.count({ where: { activo: false } }),
     ]);
 
-    // Obtener áreas con conteo de usuarios y trámites
-    const areasConConteos = await this.prisma.area.findMany({
-      include: {
-        _count: {
-          select: {
-            usuarios: {
-              where: { activo: true },
-            },
-            tramitesRemitente: true,
-          },
-        },
-      },
-      orderBy: {
-        nombre: 'asc',
-      },
+    const areas = await this.prisma.area.findMany({
+      orderBy: { nombre: 'asc' },
     });
+
+    const usuariosActivosPorArea = await this.prisma.usuario.groupBy({
+      by: ['id_area'],
+      where: { activo: true },
+      _count: { id_usuario: true },
+    });
+
+    const tramitesPorArea = await this.prisma.tramite.groupBy({
+      by: ['id_area_remitente'],
+      _count: { id_tramite: true },
+    });
+
+    const usuariosMap = new Map(
+      usuariosActivosPorArea.map((r) => [r.id_area, r._count.id_usuario]),
+    );
+    const tramitesMap = new Map(
+      tramitesPorArea.map((r) => [r.id_area_remitente, r._count.id_tramite]),
+    );
 
     return {
       total,
       activas,
       inactivas,
-      areas: areasConConteos.map((area) => ({
+      areas: areas.map((area) => ({
         id_area: area.id_area,
         nombre: area.nombre,
         activo: area.activo,
-        usuarios_activos: area._count.usuarios,
-        tramites_enviados: area._count.tramitesRemitente,
+        usuarios_activos: usuariosMap.get(area.id_area) ?? 0,
+        tramites_enviados: tramitesMap.get(area.id_area) ?? 0,
       })),
     };
   }

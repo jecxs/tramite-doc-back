@@ -1,4 +1,3 @@
-// src/common/services/email.service.ts
 import { Injectable, Logger } from '@nestjs/common';
 import {
   TransactionalEmailsApi,
@@ -13,7 +12,6 @@ export class EmailService {
   private apiInstance: TransactionalEmailsApi;
 
   constructor() {
-    // Validar variables de entorno
     if (!config.BREVO_API_KEY) {
       throw new Error(
         'BREVO_API_KEY no está configurado en variables de entorno',

@@ -1,8 +1,10 @@
+import { ERoles } from 'src/common/enums/ERoles.enum';
+
 export interface JwtPayload {
   sub: string; // id_usuario
   correo: string;
   dni: string;
-  roles: string[]; // códigos de roles: ['ADMIN', 'RESP', 'TRAB']
+  roles: ERoles[];
   id_area: string;
   nombre_completo: string;
 }
