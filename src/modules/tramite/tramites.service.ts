@@ -976,7 +976,7 @@ export class TramitesService {
    * Obtener estadísticas de trámites
    */
   async getStatistics(userId?: string, userRoles?: string[]) {
-    let where: any = {};
+    const where: any = {};
 
     // Filtrar por permisos si no es ADMIN
     if (userId && userRoles && !userRoles.includes(ERoles.ADMIN)) {

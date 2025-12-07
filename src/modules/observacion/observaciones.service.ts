@@ -531,7 +531,7 @@ export class ObservacionesService {
    * Obtener estadísticas de observaciones
    */
   async getStatistics(userId?: string, userRoles?: string[]) {
-    let where: any = {};
+    const where: any = {};
 
     // Filtrar por permisos si no es ADMIN
     if (userId && userRoles && !userRoles.includes(ERoles.ADMIN)) {
@@ -576,7 +576,7 @@ export class ObservacionesService {
    * Listar observaciones pendientes (sin resolver)
    */
   async findPendientes(userId: string, userRoles: string[]) {
-    let where: any = { resuelta: false };
+    const where: any = { resuelta: false };
 
     // Filtrar según permisos
     if (!userRoles.includes(ERoles.ADMIN)) {

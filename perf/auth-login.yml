@@ -1,0 +1,30 @@
+config:
+  target: 'http://localhost:3000'
+  phases:
+    - name: smoke # Fase 1: Prueba de humo
+      duration: 30 # Duración: 30 segundos
+      arrivalRate: 5 # 5 usuarios nuevos por segundo
+    - name: stress # Fase 2: Prueba de estrés
+      duration: 60 # Duración: 60 segundos
+      arrivalRate: 50 # 50 usuarios nuevos por segundo
+    - name: peak # Fase 3: Pico de carga
+      duration: 60 # Duración: 60 segundos
+      arrivalRate: 100 # 100 usuarios nuevos por segundo
+  defaults:
+    headers:
+      Content-Type: application/json
+scenarios:
+  - name: login_and_tramites_stats
+    flow:
+      - post:
+          url: '/api/auth/login' # Endpoint de login
+          json: # Datos de login
+            correo: 'admin@universidad.edu'
+            password: 'password123'
+          capture: # Capturar token de acceso
+            - json: '$.access_token'
+              as: token
+      - get:
+          url: '/api/tramites/statistics' # Endpoint de estadísticas de trámites
+          headers:
+            Authorization: 'Bearer {{ token }}' # Encabezado de autorización con token de acceso
