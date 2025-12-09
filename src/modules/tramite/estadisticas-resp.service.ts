@@ -1,4 +1,3 @@
-// src/modules/tramite/estadisticas-resp.service.ts
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { ERoles } from 'src/common/enums/ERoles.enum';
@@ -8,6 +7,54 @@ import { ETramitStatus } from 'src/common/enums/ETramitStatus.enum';
 export class EstadisticasRespService {
   constructor(private prisma: PrismaService) {}
 
+  private readonly TIMEZONE = 'America/Lima';
+  private readonly OFFSET_LIMA_HORAS = -5; // UTC-5
+
+  private convertirAZonaHorariaPeru(fechaUTC: Date): string {
+    const formatter = new Intl.DateTimeFormat('en-CA', {
+      timeZone: this.TIMEZONE,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    });
+
+    // 'en-CA' retorna formato YYYY-MM-DD directamente
+    return formatter.format(fechaUTC);
+  }
+  private obtenerFechaActualPeru(): Date {
+    const ahora = new Date();
+
+    const offsetServidor = ahora.getTimezoneOffset();
+    const offsetLimaMinutos = this.OFFSET_LIMA_HORAS * 60;
+    const diferenciaMinutos = offsetLimaMinutos - -offsetServidor;
+
+    const fechaLima = new Date(ahora);
+    fechaLima.setMinutes(fechaLima.getMinutes() + diferenciaMinutos);
+
+    return fechaLima;
+  }
+  private crearRangoFechas(diasAtras: number): { inicio: Date; fin: Date } {
+    const hoyLima = this.obtenerFechaActualPeru();
+
+    // Fin del día en Lima (23:59:59.999)
+    const fin = new Date(hoyLima);
+    fin.setHours(23, 59, 59, 999);
+
+    // Inicio hace N días (00:00:00.000)
+    const inicio = new Date(hoyLima);
+    inicio.setDate(inicio.getDate() - diasAtras);
+    inicio.setHours(0, 0, 0, 0);
+
+    // Convertir a UTC para la consulta a BD
+    const offsetLimaMinutos = this.OFFSET_LIMA_HORAS * 60;
+    const offsetServidor = inicio.getTimezoneOffset();
+    const diferenciaMinutos = offsetLimaMinutos - -offsetServidor;
+
+    inicio.setMinutes(inicio.getMinutes() - diferenciaMinutos);
+    fin.setMinutes(fin.getMinutes() - diferenciaMinutos);
+
+    return { inicio, fin };
+  }
   /**
    * Helper para obtener el área del responsable
    */
@@ -22,38 +69,6 @@ export class EstadisticasRespService {
     });
 
     return usuario?.id_area;
-  }
-  private readonly TIMEZONE = 'America/Lima';
-  private convertirAZonaHorariaPeru(fecha: Date): string {
-    // Convertir a zona horaria de Lima/Perú (UTC-5)
-    const fechaPeru = new Date(fecha.toLocaleString('en-US', {
-      timeZone: this.TIMEZONE
-    }));
-
-    // Obtener componentes de fecha
-    const year = fechaPeru.getFullYear();
-    const month = String(fechaPeru.getMonth() + 1).padStart(2, '0');
-    const day = String(fechaPeru.getDate()).padStart(2, '0');
-
-    return `${year}-${month}-${day}`;
-  }
-
-  private obtenerFechaActualPeru(): Date {
-    return new Date(new Date().toLocaleString('en-US', {
-      timeZone: this.TIMEZONE
-    }));
-  }
-
-
-  private crearRangoFechas(diasAtras: number): { inicio: Date; fin: Date } {
-    const hoy = this.obtenerFechaActualPeru();
-    hoy.setHours(23, 59, 59, 999);
-
-    const inicio = this.obtenerFechaActualPeru();
-    inicio.setDate(inicio.getDate() - diasAtras);
-    inicio.setHours(0, 0, 0, 0);
-
-    return { inicio, fin: hoy };
   }
 
   /**
@@ -569,6 +584,7 @@ export class EstadisticasRespService {
       take: 20,
     });
 
+    // Obtener historial para agrupar
     const historialesRaw = await this.prisma.historialTramite.findMany({
       where,
       select: {
@@ -576,19 +592,22 @@ export class EstadisticasRespService {
       },
     });
 
-    // Agrupar manualmente con conversión correcta de zona horaria
+    // Agrupar por día (en zona horaria de Lima)
     const actividadDiariaMap = new Map<string, number>();
 
     historialesRaw.forEach((historial) => {
+      // USAR LA VERSIÓN V2 (más confiable)
       const fechaDia = this.convertirAZonaHorariaPeru(historial.fecha);
       const cantidadActual = actividadDiariaMap.get(fechaDia) || 0;
       actividadDiariaMap.set(fechaDia, cantidadActual + 1);
     });
 
+    // Generar array de últimos 7 días
     const actividadDiaria: Array<{ fecha: string; cantidad: number }> = [];
+    const hoyLima = this.obtenerFechaActualPeru();
 
     for (let i = 6; i >= 0; i--) {
-      const fecha = this.obtenerFechaActualPeru();
+      const fecha = new Date(hoyLima);
       fecha.setDate(fecha.getDate() - i);
 
       const fechaStr = this.convertirAZonaHorariaPeru(fecha);
@@ -669,17 +688,16 @@ export class EstadisticasRespService {
     const resultado: { fecha: string; cantidad: number }[] = [];
     const mapaConteos = new Map<string, number>();
 
+    // Agrupar datos por fecha (en Lima)
     datos.forEach((item) => {
       const fecha = this.convertirAZonaHorariaPeru(new Date(item.fecha_envio));
       const conteoActual = mapaConteos.get(fecha) || 0;
       mapaConteos.set(fecha, conteoActual + item._count);
     });
 
-    const fechaActual = this.obtenerFechaActualPeru();
-    fechaActual.setTime(fechaInicio.getTime());
-
-    const fechaFinAjustada = this.obtenerFechaActualPeru();
-    fechaFinAjustada.setTime(fechaFin.getTime());
+    // Generar rango completo de fechas
+    const fechaActual = new Date(fechaInicio);
+    const fechaFinAjustada = new Date(fechaFin);
 
     while (fechaActual <= fechaFinAjustada) {
       const fechaStr = this.convertirAZonaHorariaPeru(fechaActual);
@@ -695,3 +713,4 @@ export class EstadisticasRespService {
     return resultado;
   }
 }
+
