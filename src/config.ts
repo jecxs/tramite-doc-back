@@ -28,7 +28,7 @@ type AppConfig = {
   CODIGO_VERIFICACION_BLOQUEO_MINUTOS: string;
 };
 
-const corsDefaults = 'http://localhost:3001,http://localhost:3000';
+const corsDefaults = 'http://localhost:3001,http://localhost:3000, http://localhost:3002';
 
 export const config: Readonly<AppConfig> = {
   NODE_ENV:

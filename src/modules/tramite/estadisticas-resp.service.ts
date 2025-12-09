@@ -23,6 +23,38 @@ export class EstadisticasRespService {
 
     return usuario?.id_area;
   }
+  private readonly TIMEZONE = 'America/Lima';
+  private convertirAZonaHorariaPeru(fecha: Date): string {
+    // Convertir a zona horaria de Lima/Perú (UTC-5)
+    const fechaPeru = new Date(fecha.toLocaleString('en-US', {
+      timeZone: this.TIMEZONE
+    }));
+
+    // Obtener componentes de fecha
+    const year = fechaPeru.getFullYear();
+    const month = String(fechaPeru.getMonth() + 1).padStart(2, '0');
+    const day = String(fechaPeru.getDate()).padStart(2, '0');
+
+    return `${year}-${month}-${day}`;
+  }
+
+  private obtenerFechaActualPeru(): Date {
+    return new Date(new Date().toLocaleString('en-US', {
+      timeZone: this.TIMEZONE
+    }));
+  }
+
+
+  private crearRangoFechas(diasAtras: number): { inicio: Date; fin: Date } {
+    const hoy = this.obtenerFechaActualPeru();
+    hoy.setHours(23, 59, 59, 999);
+
+    const inicio = this.obtenerFechaActualPeru();
+    inicio.setDate(inicio.getDate() - diasAtras);
+    inicio.setHours(0, 0, 0, 0);
+
+    return { inicio, fin: hoy };
+  }
 
   /**
    * 1. ESTADÍSTICAS GENERALES
@@ -498,17 +530,20 @@ export class EstadisticasRespService {
   async getActividadReciente(userId: string, userRoles: string[]) {
     const idArea = await this.getAreaResponsable(userId, userRoles);
 
-    const fechaInicio = new Date();
-    fechaInicio.setDate(fechaInicio.getDate() - 7);
+    const { inicio: fechaInicio, fin: fechaFin } = this.crearRangoFechas(7);
 
     const where: any = {
-      fecha: { gte: fechaInicio },
+      fecha: {
+        gte: fechaInicio,
+        lte: fechaFin,
+      },
     };
 
     if (idArea) {
       where.tramite = { id_area_remitente: idArea };
     }
 
+    // Obtener actividades
     const actividades = await this.prisma.historialTramite.findMany({
       where,
       select: {
@@ -531,33 +566,52 @@ export class EstadisticasRespService {
         },
       },
       orderBy: { fecha: 'desc' },
-      take: 20, // Últimas 20 actividades
+      take: 20,
     });
 
-    // Contar acciones por día
-    const accionesPorDia = await this.prisma.historialTramite.groupBy({
-      by: ['fecha'],
+    const historialesRaw = await this.prisma.historialTramite.findMany({
       where,
-      _count: true,
-      orderBy: { fecha: 'asc' },
+      select: {
+        fecha: true,
+      },
     });
+
+    // Agrupar manualmente con conversión correcta de zona horaria
+    const actividadDiariaMap = new Map<string, number>();
+
+    historialesRaw.forEach((historial) => {
+      const fechaDia = this.convertirAZonaHorariaPeru(historial.fecha);
+      const cantidadActual = actividadDiariaMap.get(fechaDia) || 0;
+      actividadDiariaMap.set(fechaDia, cantidadActual + 1);
+    });
+
+    const actividadDiaria: Array<{ fecha: string; cantidad: number }> = [];
+
+    for (let i = 6; i >= 0; i--) {
+      const fecha = this.obtenerFechaActualPeru();
+      fecha.setDate(fecha.getDate() - i);
+
+      const fechaStr = this.convertirAZonaHorariaPeru(fecha);
+
+      actividadDiaria.push({
+        fecha: fechaStr,
+        cantidad: actividadDiariaMap.get(fechaStr) || 0,
+      });
+    }
 
     return {
       ultimas_actividades: actividades.map((a) => ({
         id: a.id_historial,
         accion: a.accion,
         detalle: a.detalle,
-        fecha: a.fecha,
+        fecha: a.fecha.toISOString(), // Mantener ISO para el frontend
         tramite_codigo: a.tramite.codigo,
         tramite_asunto: a.tramite.asunto,
         usuario: a.usuario
           ? `${a.usuario.nombres} ${a.usuario.apellidos}`
           : 'Sistema',
       })),
-      actividad_diaria: accionesPorDia.map((item) => ({
-        fecha: item.fecha.toISOString().split('T')[0],
-        cantidad: item._count,
-      })),
+      actividad_diaria: actividadDiaria,
     };
   }
 
@@ -615,20 +669,26 @@ export class EstadisticasRespService {
     const resultado: { fecha: string; cantidad: number }[] = [];
     const mapaConteos = new Map<string, number>();
 
-    // Llenar mapa con los datos existentes
     datos.forEach((item) => {
-      const fecha = new Date(item.fecha_envio).toISOString().split('T')[0];
-      mapaConteos.set(fecha, item._count);
+      const fecha = this.convertirAZonaHorariaPeru(new Date(item.fecha_envio));
+      const conteoActual = mapaConteos.get(fecha) || 0;
+      mapaConteos.set(fecha, conteoActual + item._count);
     });
 
-    // Crear array con todas las fechas del rango
-    const fechaActual = new Date(fechaInicio);
-    while (fechaActual <= fechaFin) {
-      const fechaStr = fechaActual.toISOString().split('T')[0];
+    const fechaActual = this.obtenerFechaActualPeru();
+    fechaActual.setTime(fechaInicio.getTime());
+
+    const fechaFinAjustada = this.obtenerFechaActualPeru();
+    fechaFinAjustada.setTime(fechaFin.getTime());
+
+    while (fechaActual <= fechaFinAjustada) {
+      const fechaStr = this.convertirAZonaHorariaPeru(fechaActual);
+
       resultado.push({
         fecha: fechaStr,
         cantidad: mapaConteos.get(fechaStr) || 0,
       });
+
       fechaActual.setDate(fechaActual.getDate() + 1);
     }
 
