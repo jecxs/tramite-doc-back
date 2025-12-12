@@ -104,21 +104,19 @@ export class ReportesRespService {
       where.id_area_remitente = idAreaUsuario;
     }
 
-    // Filtro de fechas
-    if (filtros.fecha_inicio || filtros.fecha_fin) {
+    // Filtro de fechas - CORREGIDO PARA INCLUIR EL RANGO COMPLETO
+    if (filtros.fecha_inicio) {
       where.fecha_envio = {};
 
-      if (filtros.fecha_inicio) {
-        const inicio = new Date(filtros.fecha_inicio);
-        inicio.setHours(0, 0, 0, 0);
-        where.fecha_envio.gte = inicio;
-      }
+      // Fecha inicio: desde las 00:00:00 de ese día
+      const fechaInicioDate = new Date(filtros.fecha_inicio + 'T00:00:00.000Z');
+      where.fecha_envio.gte = fechaInicioDate;
 
-      if (filtros.fecha_fin) {
-        const fin = new Date(filtros.fecha_fin);
-        fin.setHours(23, 59, 59, 999);
-        where.fecha_envio.lte = fin;
-      }
+      // Fecha fin: hasta las 23:59:59.999 de ese día
+      // Si no hay fecha_fin, usar la misma fecha_inicio
+      const fechaFinStr = filtros.fecha_fin || filtros.fecha_inicio;
+      const fechaFinDate = new Date(fechaFinStr + 'T23:59:59.999Z');
+      where.fecha_envio.lte = fechaFinDate;
     }
 
     // Filtro de tipo de documento
@@ -128,68 +126,100 @@ export class ReportesRespService {
       };
     }
 
-    // === OBTENER DATOS ===
-    const [
-      tramites,
-      tipoDocumento,
-      area,
-    ] = await Promise.all([
-      this.prisma.tramite.findMany({
-        where,
-        include: {
-          documento: {
-            include: {
-              tipo: true,
-            },
+    // === OBTENER TRÁMITES ===
+    const tramites = await this.prisma.tramite.findMany({
+      where,
+      include: {
+        documento: {
+          include: {
+            tipo: true,
           },
-          receptor: {
-            select: {
-              id_usuario: true,
-              nombres: true,
-              apellidos: true,
-            },
+        },
+        receptor: {
+          select: {
+            id_usuario: true,
+            nombres: true,
+            apellidos: true,
+            correo: true,
           },
-          firma: true,
-          respuesta: true,
         },
-        orderBy: {
-          fecha_envio: 'asc',
-        },
-      }),
-      // Obtener info del tipo de documento si está filtrado
-      filtros.id_tipo_documento
-        ? this.prisma.tipoDocumento.findUnique({
-          where: { id_tipo: filtros.id_tipo_documento },
-        })
-        : null,
-      // Obtener info del área si está filtrada
-      filtros.id_area
-        ? this.prisma.area.findUnique({
-          where: { id_area: filtros.id_area },
-        })
-        : null,
-    ]);
+        respuesta: true,
+      },
+      orderBy: {
+        fecha_envio: 'asc',
+      },
+    });
 
-    // === CALCULAR RESUMEN ===
+    // === OBTENER INFORMACIÓN ADICIONAL ===
+    let tipoDocumento: {
+      id_tipo: string;
+      codigo: string;
+      nombre: string;
+      descripcion: string | null;
+      requiere_firma: boolean;
+      requiere_respuesta: boolean;
+    } | null = null;
+
+    if (filtros.id_tipo_documento) {
+      tipoDocumento = await this.prisma.tipoDocumento.findUnique({
+        where: { id_tipo: filtros.id_tipo_documento },
+      });
+    }
+
+    let area: {
+      id_area: string;
+      nombre: string;
+      activo: boolean;
+    } | null = null;
+
+    if (filtros.id_area && userRoles.includes(ERoles.ADMIN)) {
+      area = await this.prisma.area.findUnique({
+        where: { id_area: filtros.id_area },
+      });
+    } else if (idAreaUsuario) {
+      area = await this.prisma.area.findUnique({
+        where: { id_area: idAreaUsuario },
+      });
+    }
+
+    // === MÉTRICAS RESUMEN ===
     const totalEnviados = tramites.length;
-    const totalPendientes = tramites.filter((t) => t.estado === ETramitStatus.ENVIADO).length;
-    const totalAbiertos = tramites.filter((t) => t.estado === ETramitStatus.ABIERTO).length;
-    const totalLeidos = tramites.filter((t) => t.estado === ETramitStatus.LEIDO).length;
-    const totalFirmados = tramites.filter((t) => t.estado === ETramitStatus.FIRMADO).length;
-    const totalRespondidos = tramites.filter((t) => t.estado === ETramitStatus.RESPONDIDO).length;
-    const totalAnulados = tramites.filter((t) => t.estado === ETramitStatus.ANULADO).length;
+    const totalPendientes = tramites.filter(
+      (t) => t.estado === ETramitStatus.ENVIADO,
+    ).length;
+    const totalAbiertos = tramites.filter(
+      (t) => t.estado === ETramitStatus.ABIERTO,
+    ).length;
+    const totalLeidos = tramites.filter(
+      (t) => t.estado === ETramitStatus.LEIDO,
+    ).length;
+    const totalFirmados = tramites.filter(
+      (t) => t.estado === ETramitStatus.FIRMADO,
+    ).length;
+    const totalRespondidos = tramites.filter(
+      (t) => t.estado === ETramitStatus.RESPONDIDO,
+    ).length;
+    const totalAnulados = tramites.filter(
+      (t) => t.estado === ETramitStatus.ANULADO,
+    ).length;
 
-    const totalEntregados = totalAbiertos + totalLeidos + totalFirmados + totalRespondidos;
+    const totalEntregados =
+      totalAbiertos + totalLeidos + totalFirmados + totalRespondidos;
 
-    const porcentajeEntregados = totalEnviados > 0 ? (totalEntregados / totalEnviados) * 100 : 0;
-    const porcentajePendientes = totalEnviados > 0 ? (totalPendientes / totalEnviados) * 100 : 0;
+    const porcentajeEntregados =
+      totalEnviados > 0 ? (totalEntregados / totalEnviados) * 100 : 0;
+    const porcentajePendientes =
+      totalEnviados > 0 ? (totalPendientes / totalEnviados) * 100 : 0;
 
     // === MÉTRICAS DE FIRMA ===
     const tramitesConFirma = tramites.filter((t) => t.requiere_firma);
     const requierenFirma = tramitesConFirma.length;
-    const firmados = tramitesConFirma.filter((t) => t.estado === ETramitStatus.FIRMADO).length;
+    const firmados = tramitesConFirma.filter(
+      (t) => t.estado === ETramitStatus.FIRMADO,
+    ).length;
     const pendientesFirma = requierenFirma - firmados;
-    const porcentajeFirmados = requierenFirma > 0 ? (firmados / requierenFirma) * 100 : 0;
+    const porcentajeFirmados =
+      requierenFirma > 0 ? (firmados / requierenFirma) * 100 : 0;
 
     // === MÉTRICAS DE RESPUESTA ===
     const tramitesConRespuesta = tramites.filter((t) => t.requiere_respuesta);
@@ -202,7 +232,10 @@ export class ReportesRespService {
       requierenRespuesta > 0 ? (respondidos / requierenRespuesta) * 100 : 0;
 
     // === TIEMPOS PROMEDIO ===
-    const calcularPromedioHoras = (tramitesFiltrados: any[], campoFecha: string) => {
+    const calcularPromedioHoras = (
+      tramitesFiltrados: any[],
+      campoFecha: string,
+    ) => {
       const tiempos = tramitesFiltrados
         .filter((t) => t[campoFecha] != null)
         .map((t) => {
@@ -252,8 +285,8 @@ export class ReportesRespService {
       if (t.estado === ETramitStatus.FIRMADO || t.fecha_firmado) dia.firmados++;
     });
 
-    const distribucionPorDia = Array.from(distribucionMap.values()).sort((a, b) =>
-      a.fecha.localeCompare(b.fecha),
+    const distribucionPorDia = Array.from(distribucionMap.values()).sort(
+      (a, b) => a.fecha.localeCompare(b.fecha),
     );
 
     // === TRABAJADORES TOP ===
@@ -296,20 +329,20 @@ export class ReportesRespService {
     return {
       periodo: {
         fecha_inicio: filtros.fecha_inicio || 'N/A',
-        fecha_fin: filtros.fecha_fin || 'N/A',
+        fecha_fin: filtros.fecha_fin || filtros.fecha_inicio || 'N/A',
       },
       tipo_documento: tipoDocumento
         ? {
-          id_tipo: tipoDocumento.id_tipo,
-          codigo: tipoDocumento.codigo,
-          nombre: tipoDocumento.nombre,
-        }
+            id_tipo: tipoDocumento.id_tipo,
+            codigo: tipoDocumento.codigo,
+            nombre: tipoDocumento.nombre,
+          }
         : undefined,
       area: area
         ? {
-          id_area: area.id_area,
-          nombre: area.nombre,
-        }
+            id_area: area.id_area,
+            nombre: area.nombre,
+          }
         : undefined,
       resumen: {
         total_enviados: totalEnviados,
@@ -336,10 +369,18 @@ export class ReportesRespService {
         porcentaje_respondidos: parseFloat(porcentajeRespondidos.toFixed(2)),
       },
       tiempos_promedio: {
-        envio_a_apertura_horas: parseFloat(tiemposPromedio.envio_a_apertura_horas.toFixed(2)),
-        envio_a_lectura_horas: parseFloat(tiemposPromedio.envio_a_lectura_horas.toFixed(2)),
-        envio_a_firma_horas: parseFloat(tiemposPromedio.envio_a_firma_horas.toFixed(2)),
-        envio_a_respuesta_horas: parseFloat(tiemposPromedio.envio_a_respuesta_horas.toFixed(2)),
+        envio_a_apertura_horas: parseFloat(
+          tiemposPromedio.envio_a_apertura_horas.toFixed(2),
+        ),
+        envio_a_lectura_horas: parseFloat(
+          tiemposPromedio.envio_a_lectura_horas.toFixed(2),
+        ),
+        envio_a_firma_horas: parseFloat(
+          tiemposPromedio.envio_a_firma_horas.toFixed(2),
+        ),
+        envio_a_respuesta_horas: parseFloat(
+          tiemposPromedio.envio_a_respuesta_horas.toFixed(2),
+        ),
       },
       distribucion_por_dia: distribucionPorDia,
       trabajadores_top: trabajadoresTop,

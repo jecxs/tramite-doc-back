@@ -42,6 +42,10 @@ export class ReportesRespController {
     @CurrentUser('roles') userRoles: string[],
     @Query() filtros: FiltrosReporteDto,
   ) {
-    return this.reportesService.generarReportePersonalizado(userId, userRoles, filtros);
+    return this.reportesService.generarReportePersonalizado(
+      userId,
+      userRoles,
+      filtros,
+    );
   }
 }

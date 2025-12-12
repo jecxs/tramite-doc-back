@@ -9,7 +9,11 @@ import { ReportesRespController } from './reportes-resp.controller';
 
 @Module({
   imports: [NotificacionesModule],
-  controllers: [TramitesController, EstadisticasRespController, ReportesRespController],
+  controllers: [
+    TramitesController,
+    EstadisticasRespController,
+    ReportesRespController,
+  ],
   providers: [TramitesService, EstadisticasRespService, ReportesRespService],
   exports: [TramitesService, EstadisticasRespService, ReportesRespService],
 })

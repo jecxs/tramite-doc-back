@@ -713,4 +713,3 @@ export class EstadisticasRespService {
     return resultado;
   }
 }
-
