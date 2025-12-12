@@ -4,10 +4,10 @@ import { ERoles } from 'src/common/enums/ERoles.enum';
 import { ETramitStatus } from 'src/common/enums/ETramitStatus.enum';
 
 export interface FiltrosReporte {
-  fecha_inicio?: string; // YYYY-MM-DD
-  fecha_fin?: string; // YYYY-MM-DD
+  fecha_inicio?: string;
+  fecha_fin?: string;
   id_tipo_documento?: string;
-  id_area?: string; // Para ADMIN que quiere ver reportes de otras áreas
+  id_area?: string;
 }
 
 export interface ReportePersonalizado {
@@ -26,8 +26,8 @@ export interface ReportePersonalizado {
   };
   resumen: {
     total_enviados: number;
-    total_entregados: number; // ABIERTO + LEIDO + FIRMADO + RESPONDIDO
-    total_pendientes: number; // ENVIADO
+    total_entregados: number;
+    total_pendientes: number;
     total_abiertos: number;
     total_leidos: number;
     total_firmados: number;
@@ -74,6 +74,47 @@ export interface ReportePersonalizado {
 export class ReportesRespService {
   constructor(private prisma: PrismaService) {}
 
+  // ==================== HELPERS DE ZONA HORARIA ====================
+
+  private readonly TIMEZONE = 'America/Lima';
+  private readonly OFFSET_LIMA_HORAS = -5; // UTC-5
+
+  /**
+   * Convierte una fecha UTC a formato YYYY-MM-DD en zona horaria de Lima
+   */
+  private convertirAZonaHorariaPeru(fechaUTC: Date): string {
+    const formatter = new Intl.DateTimeFormat('en-CA', {
+      timeZone: this.TIMEZONE,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    });
+
+    // 'en-CA' retorna formato YYYY-MM-DD directamente
+    return formatter.format(fechaUTC);
+  }
+
+  /**
+   * Crea un Date en zona horaria de Lima a partir de un string YYYY-MM-DD
+   * Retorna el Date en UTC que representa ese momento en Lima
+   */
+  private crearFechaLima(fechaStr: string, hora: number, minuto: number, segundo: number, milisegundo: number): Date {
+    // Parsear la fecha string
+    const [year, month, day] = fechaStr.split('-').map(Number);
+
+    // Crear fecha en UTC
+    const fechaUTC = new Date(Date.UTC(year, month - 1, day, hora, minuto, segundo, milisegundo));
+
+    // Ajustar por el offset de Lima (UTC-5)
+    // Si queremos las 00:00:00 en Lima, necesitamos sumar 5 horas en UTC
+    const offsetLimaMinutos = this.OFFSET_LIMA_HORAS * 60;
+    fechaUTC.setMinutes(fechaUTC.getMinutes() - offsetLimaMinutos);
+
+    return fechaUTC;
+  }
+
+  // ==================== LÓGICA DE NEGOCIO ====================
+
   private async getAreaResponsable(userId: string, userRoles: string[]) {
     if (userRoles.includes(ERoles.ADMIN)) {
       return null; // Admin ve todo
@@ -93,30 +134,48 @@ export class ReportesRespService {
     filtros: FiltrosReporte,
   ): Promise<ReportePersonalizado> {
     const idAreaUsuario = await this.getAreaResponsable(userId, userRoles);
+    const isAdmin = userRoles.includes(ERoles.ADMIN);
 
     // Construir filtros base
     const where: any = {};
 
-    // Filtro de área
-    if (filtros.id_area && userRoles.includes(ERoles.ADMIN)) {
-      where.id_area_remitente = filtros.id_area;
-    } else if (idAreaUsuario) {
-      where.id_area_remitente = idAreaUsuario;
+    // 🔥 FILTRO POR ÁREA (NO POR REMITENTE)
+    // Los responsables ven todos los trámites de su área
+    if (isAdmin) {
+      // ADMIN: Puede filtrar por área específica o ver todo
+      if (filtros.id_area) {
+        where.id_area_remitente = filtros.id_area;
+      }
+      // Si no especifica área, ve todo (no agregar filtro)
+    } else {
+      // RESPONSABLE: Ve todos los trámites de su área
+      if (idAreaUsuario) {
+        where.id_area_remitente = idAreaUsuario;
+      }
     }
 
-    // Filtro de fechas - CORREGIDO PARA INCLUIR EL RANGO COMPLETO
+    // 🔥 FILTRO DE FECHAS CON ZONA HORARIA DE LIMA
     if (filtros.fecha_inicio) {
       where.fecha_envio = {};
 
-      // Fecha inicio: desde las 00:00:00 de ese día
-      const fechaInicioDate = new Date(filtros.fecha_inicio + 'T00:00:00.000Z');
-      where.fecha_envio.gte = fechaInicioDate;
+      // Fecha inicio: 00:00:00 en Lima
+      const fechaInicio = this.crearFechaLima(filtros.fecha_inicio, 0, 0, 0, 0);
 
-      // Fecha fin: hasta las 23:59:59.999 de ese día
-      // Si no hay fecha_fin, usar la misma fecha_inicio
+      // Fecha fin: 23:59:59.999 en Lima
       const fechaFinStr = filtros.fecha_fin || filtros.fecha_inicio;
-      const fechaFinDate = new Date(fechaFinStr + 'T23:59:59.999Z');
-      where.fecha_envio.lte = fechaFinDate;
+      const fechaFin = this.crearFechaLima(fechaFinStr, 23, 59, 59, 999);
+
+      where.fecha_envio = {
+        gte: fechaInicio,
+        lte: fechaFin,
+      };
+
+      console.log('🔍 [REPORTES] Filtro de fechas aplicado:', {
+        fecha_inicio_input: filtros.fecha_inicio,
+        fecha_fin_input: fechaFinStr,
+        fecha_inicio_utc: fechaInicio.toISOString(),
+        fecha_fin_utc: fechaFin.toISOString(),
+      });
     }
 
     // Filtro de tipo de documento
@@ -125,6 +184,8 @@ export class ReportesRespService {
         id_tipo: filtros.id_tipo_documento,
       };
     }
+
+    console.log('🔍 [REPORTES] WHERE clause completo:', JSON.stringify(where, null, 2));
 
     // === OBTENER TRÁMITES ===
     const tramites = await this.prisma.tramite.findMany({
@@ -150,6 +211,16 @@ export class ReportesRespService {
       },
     });
 
+    console.log(`✅ [REPORTES] Trámites encontrados: ${tramites.length}`);
+
+    if (tramites.length > 0) {
+      console.log('📋 [REPORTES] Primeros 3 trámites:', tramites.slice(0, 3).map(t => ({
+        codigo: t.codigo,
+        fecha_envio: t.fecha_envio.toISOString(),
+        fecha_envio_lima: this.convertirAZonaHorariaPeru(t.fecha_envio),
+      })));
+    }
+
     // === OBTENER INFORMACIÓN ADICIONAL ===
     let tipoDocumento: {
       id_tipo: string;
@@ -172,7 +243,7 @@ export class ReportesRespService {
       activo: boolean;
     } | null = null;
 
-    if (filtros.id_area && userRoles.includes(ERoles.ADMIN)) {
+    if (filtros.id_area && isAdmin) {
       area = await this.prisma.area.findUnique({
         where: { id_area: filtros.id_area },
       });
@@ -261,11 +332,11 @@ export class ReportesRespService {
       ),
     };
 
-    // === DISTRIBUCIÓN POR DÍA ===
+    // === DISTRIBUCIÓN POR DÍA (usando zona horaria de Lima) ===
     const distribucionMap = new Map<string, any>();
 
     tramites.forEach((t) => {
-      const fecha = this.formatearFechaSinHora(t.fecha_envio);
+      const fecha = this.convertirAZonaHorariaPeru(t.fecha_envio);
 
       if (!distribucionMap.has(fecha)) {
         distribucionMap.set(fecha, {
@@ -333,16 +404,16 @@ export class ReportesRespService {
       },
       tipo_documento: tipoDocumento
         ? {
-            id_tipo: tipoDocumento.id_tipo,
-            codigo: tipoDocumento.codigo,
-            nombre: tipoDocumento.nombre,
-          }
+          id_tipo: tipoDocumento.id_tipo,
+          codigo: tipoDocumento.codigo,
+          nombre: tipoDocumento.nombre,
+        }
         : undefined,
       area: area
         ? {
-            id_area: area.id_area,
-            nombre: area.nombre,
-          }
+          id_area: area.id_area,
+          nombre: area.nombre,
+        }
         : undefined,
       resumen: {
         total_enviados: totalEnviados,
@@ -385,12 +456,5 @@ export class ReportesRespService {
       distribucion_por_dia: distribucionPorDia,
       trabajadores_top: trabajadoresTop,
     };
-  }
-
-  private formatearFechaSinHora(fecha: Date): string {
-    const year = fecha.getFullYear();
-    const month = String(fecha.getMonth() + 1).padStart(2, '0');
-    const day = String(fecha.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
   }
 }
