@@ -28,7 +28,7 @@ export class TipoDocumentoController {
    * Acceso: Solo ADMIN
    */
   @Post()
-  @Roles(ERoles.ADMIN)
+  @Roles(ERoles.ADMIN, ERoles.RESP)
   create(@Body() createTipoDocumentoDto: CreateTipoDocumentoDto) {
     return this.tipoDocumentoService.create(createTipoDocumentoDto);
   }
