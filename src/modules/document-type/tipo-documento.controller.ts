@@ -105,7 +105,7 @@ export class TipoDocumentoController {
    * Acceso: Solo ADMIN
    */
   @Patch(':id')
-  @Roles(ERoles.ADMIN)
+  @Roles(ERoles.ADMIN, ERoles.RESP)
   update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() updateTipoDocumentoDto: UpdateTipoDocumentoDto,
