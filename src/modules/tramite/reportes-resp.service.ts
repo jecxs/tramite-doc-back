@@ -27,6 +27,7 @@ export interface ReportePersonalizado {
   resumen: {
     total_enviados: number;
     total_entregados: number;
+    total_completados: number;
     total_pendientes: number;
     total_abiertos: number;
     total_leidos: number;
@@ -34,6 +35,7 @@ export interface ReportePersonalizado {
     total_respondidos: number;
     total_anulados: number;
     porcentaje_entregados: number;
+    porcentaje_completados: number;
     porcentaje_pendientes: number;
   };
   metricas_firma: {
@@ -66,6 +68,7 @@ export interface ReportePersonalizado {
     nombre_completo: string;
     total_recibidos: number;
     completados: number;
+    pendientes: number;
     porcentaje_completado: number;
   }>;
 }
@@ -98,12 +101,20 @@ export class ReportesRespService {
    * Crea un Date en zona horaria de Lima a partir de un string YYYY-MM-DD
    * Retorna el Date en UTC que representa ese momento en Lima
    */
-  private crearFechaLima(fechaStr: string, hora: number, minuto: number, segundo: number, milisegundo: number): Date {
+  private crearFechaLima(
+    fechaStr: string,
+    hora: number,
+    minuto: number,
+    segundo: number,
+    milisegundo: number,
+  ): Date {
     // Parsear la fecha string
     const [year, month, day] = fechaStr.split('-').map(Number);
 
     // Crear fecha en UTC
-    const fechaUTC = new Date(Date.UTC(year, month - 1, day, hora, minuto, segundo, milisegundo));
+    const fechaUTC = new Date(
+      Date.UTC(year, month - 1, day, hora, minuto, segundo, milisegundo),
+    );
 
     // Ajustar por el offset de Lima (UTC-5)
     // Si queremos las 00:00:00 en Lima, necesitamos sumar 5 horas en UTC
@@ -111,6 +122,32 @@ export class ReportesRespService {
     fechaUTC.setMinutes(fechaUTC.getMinutes() - offsetLimaMinutos);
 
     return fechaUTC;
+  }
+  /**
+   * Verifica si un trámite está realmente completado según sus requisitos
+   */
+  private verificarTramiteCompletado(tramite: any): boolean {
+    // Si está anulado, no cuenta como completado
+    if (tramite.estado === ETramitStatus.ANULADO) {
+      return false;
+    }
+
+    // Si requiere firma, debe estar FIRMADO
+    if (tramite.requiere_firma) {
+      return tramite.estado === ETramitStatus.FIRMADO;
+    }
+
+    // Si requiere respuesta, debe estar RESPONDIDO
+    if (tramite.requiere_respuesta) {
+      return tramite.estado === ETramitStatus.RESPONDIDO;
+    }
+
+    // Si solo requiere lectura (memo, notificación), debe estar al menos LEIDO
+    return (
+      tramite.estado === ETramitStatus.LEIDO ||
+      tramite.estado === ETramitStatus.FIRMADO ||
+      tramite.estado === ETramitStatus.RESPONDIDO
+    );
   }
 
   // ==================== LÓGICA DE NEGOCIO ====================
@@ -185,7 +222,10 @@ export class ReportesRespService {
       };
     }
 
-    console.log('🔍 [REPORTES] WHERE clause completo:', JSON.stringify(where, null, 2));
+    console.log(
+      '🔍 [REPORTES] WHERE clause completo:',
+      JSON.stringify(where, null, 2),
+    );
 
     // === OBTENER TRÁMITES ===
     const tramites = await this.prisma.tramite.findMany({
@@ -214,11 +254,14 @@ export class ReportesRespService {
     console.log(`✅ [REPORTES] Trámites encontrados: ${tramites.length}`);
 
     if (tramites.length > 0) {
-      console.log('📋 [REPORTES] Primeros 3 trámites:', tramites.slice(0, 3).map(t => ({
-        codigo: t.codigo,
-        fecha_envio: t.fecha_envio.toISOString(),
-        fecha_envio_lima: this.convertirAZonaHorariaPeru(t.fecha_envio),
-      })));
+      console.log(
+        '📋 [REPORTES] Primeros 3 trámites:',
+        tramites.slice(0, 3).map((t) => ({
+          codigo: t.codigo,
+          fecha_envio: t.fecha_envio.toISOString(),
+          fecha_envio_lima: this.convertirAZonaHorariaPeru(t.fecha_envio),
+        })),
+      );
     }
 
     // === OBTENER INFORMACIÓN ADICIONAL ===
@@ -253,8 +296,9 @@ export class ReportesRespService {
       });
     }
 
-    // === MÉTRICAS RESUMEN ===
     const totalEnviados = tramites.length;
+
+    // Contar por estados
     const totalPendientes = tramites.filter(
       (t) => t.estado === ETramitStatus.ENVIADO,
     ).length;
@@ -274,9 +318,20 @@ export class ReportesRespService {
       (t) => t.estado === ETramitStatus.ANULADO,
     ).length;
 
-    const totalEntregados =
-      totalAbiertos + totalLeidos + totalFirmados + totalRespondidos;
+    // CORRECCIÓN: Calcular "completados" basándose en los requisitos reales
+    const totalCompletados = tramites.filter((t) =>
+      this.verificarTramiteCompletado(t),
+    ).length;
 
+    // "Entregados" significa que ya llegó al trabajador (abierto o más)
+    const totalEntregados = tramites.filter(
+      (t) =>
+        t.estado !== ETramitStatus.ENVIADO &&
+        t.estado !== ETramitStatus.ANULADO,
+    ).length;
+
+    const porcentajeCompletados =
+      totalEnviados > 0 ? (totalCompletados / totalEnviados) * 100 : 0;
     const porcentajeEntregados =
       totalEnviados > 0 ? (totalEntregados / totalEnviados) * 100 : 0;
     const porcentajePendientes =
@@ -372,18 +427,23 @@ export class ReportesRespService {
           nombre_completo: `${t.receptor.nombres} ${t.receptor.apellidos}`,
           total_recibidos: 0,
           completados: 0,
+          pendientes: 0,
         });
       }
 
       const trabajador = trabajadoresMap.get(idReceptor)!;
       trabajador.total_recibidos++;
 
-      if (
-        t.estado === ETramitStatus.FIRMADO ||
-        t.estado === ETramitStatus.RESPONDIDO ||
-        t.estado === ETramitStatus.LEIDO
-      ) {
+      // LÓGICA CORRECTA: Verificar si está realmente completado según lo que requiere
+      const estaCompletado = this.verificarTramiteCompletado(t);
+
+      if (estaCompletado) {
         trabajador.completados++;
+      } else {
+        // Solo contabilizar como pendiente si no está anulado
+        if (t.estado !== ETramitStatus.ANULADO) {
+          trabajador.pendientes++;
+        }
       }
     });
 
@@ -404,27 +464,29 @@ export class ReportesRespService {
       },
       tipo_documento: tipoDocumento
         ? {
-          id_tipo: tipoDocumento.id_tipo,
-          codigo: tipoDocumento.codigo,
-          nombre: tipoDocumento.nombre,
-        }
+            id_tipo: tipoDocumento.id_tipo,
+            codigo: tipoDocumento.codigo,
+            nombre: tipoDocumento.nombre,
+          }
         : undefined,
       area: area
         ? {
-          id_area: area.id_area,
-          nombre: area.nombre,
-        }
+            id_area: area.id_area,
+            nombre: area.nombre,
+          }
         : undefined,
       resumen: {
         total_enviados: totalEnviados,
-        total_entregados: totalEntregados,
-        total_pendientes: totalPendientes,
+        total_entregados: totalEntregados, // Documentos que ya llegaron al trabajador
+        total_completados: totalCompletados, // NUEVO: Documentos que cumplieron su requisito final
+        total_pendientes: totalPendientes, // Aún no han sido abiertos
         total_abiertos: totalAbiertos,
         total_leidos: totalLeidos,
         total_firmados: totalFirmados,
         total_respondidos: totalRespondidos,
         total_anulados: totalAnulados,
         porcentaje_entregados: parseFloat(porcentajeEntregados.toFixed(2)),
+        porcentaje_completados: parseFloat(porcentajeCompletados.toFixed(2)), // NUEVO
         porcentaje_pendientes: parseFloat(porcentajePendientes.toFixed(2)),
       },
       metricas_firma: {
